@@ -18,7 +18,8 @@ local function initializeDatabase()
             plate VARCHAR(15) PRIMARY KEY,
             engine_type VARCHAR(50) DEFAULT "v6_stock",
             nitro_level INT DEFAULT 0,
-            reliability FLOAT DEFAULT 1.0
+            reliability FLOAT DEFAULT 1.0,
+            metadata JSON DEFAULT '{}'
         )
     ]])
 
@@ -40,10 +41,39 @@ MySQL.ready(function()
     initializeDatabase()
 end)
 
---- Modular query builder for vehicle updates (Modern Pattern)
-local function buildSaveVehicleQuery(plate, options)
+--- Stress Relief Logic for Mechanics
+--- @param source number Player ID
+--- @param min number Minimum relief
+--- @param max number Maximum relief
+local function relieveMechanicStress(source, min, max)
+    local playerState = Player(source).state
+    local amount = math.random(min or 5, max or 15)
+    local currentStress = playerState.stress or 0
+    local newStress = lib.math.clamp(currentStress - amount, 0, 100)
+
+    playerState:set("stress", newStress, true)
+    
+    if amount > 0 then
+        exports.qbx_core:Notify(source, "Focused work relieved some stress", "inform", 2500, nil, nil, { "#141517", "#ffffff" }, "brain", "#0F52BA")
+    end
+end
+
+--- Modular query builder for vehicle updates (Finalized for Persistence)
+--- @param vehicleId string Plate or Database ID
+--- @param options table Data to save
+local function buildSaveVehicleQuery(vehicleId, options)
     local crumbs = {}
     local placeholders = {}
+
+    if options.state then
+        crumbs[#crumbs+1] = "state = ?"
+        placeholders[#placeholders+1] = options.state
+    end
+
+    if options.depotPrice then
+        crumbs[#crumbs+1] = "depotprice = ?"
+        placeholders[#placeholders+1] = options.depotPrice
+    end
 
     if options.props then
         crumbs[#crumbs+1] = "mods = ?"
@@ -58,9 +88,14 @@ local function buildSaveVehicleQuery(plate, options)
             crumbs[#crumbs+1] = "body = ?"
             placeholders[#placeholders+1] = options.props.bodyHealth
         end
+
+        if options.props.fuelLevel then
+            crumbs[#crumbs+1] = "fuel = ?"
+            placeholders[#placeholders+1] = options.props.fuelLevel
+        end
     end
 
-    placeholders[#placeholders+1] = plate
+    placeholders[#placeholders+1] = vehicleId
     return string.format("UPDATE player_vehicles SET %s WHERE plate = ?", table.concat(crumbs, ", ")), placeholders
 end
 
@@ -99,12 +134,16 @@ RegisterNetEvent("mechanic:server:swapEngine", function(plate, engineType)
 
     exports.ox_inventory:RemoveItem(src, blockData.item, 1)
 
+    -- Inject 300MPH Metadata for high-end blocks
+    local metadata = { topSpeedMultiplier = 1.5, accelerationBonus = 2.0 }
+    
     MySQL.query.await([[
-        INSERT INTO vehicle_engines (plate, engine_type) 
-        VALUES (?, ?) 
-        ON DUPLICATE KEY UPDATE engine_type = ?
-    ]], {plate, engineType, engineType})
+        INSERT INTO vehicle_engines (plate, engine_type, metadata) 
+        VALUES (?, ?, ?) 
+        ON DUPLICATE KEY UPDATE engine_type = ?, metadata = ?
+    ]], {plate, engineType, json.encode(metadata), engineType, json.encode(metadata)})
 
+    relieveMechanicStress(src, 10, 20)
     TriggerClientEvent("QBCore:Notify", src, "Engine Swapped: " .. blockData.label, "success")
 end)
 
@@ -117,7 +156,6 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     local missingItems = {}
     local totalCharge = 0
 
-    -- Validate Inventory for all parts in the cart
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then
@@ -132,15 +170,17 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
         return
     end
 
-    -- Consume Items
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then exports.ox_inventory:RemoveItem(src, requiredItem, 1) end
     end
 
-    -- Save to DB
+    -- Save using Persistent Query
     local query, placeholders = buildSaveVehicleQuery(props.plate, { props = props })
     MySQL.update.await(query, placeholders)
+
+    -- Relieve stress for completing a job
+    relieveMechanicStress(src, 5, 15)
 
     -- Update Business Balance
     local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {

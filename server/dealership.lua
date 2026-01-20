@@ -12,6 +12,43 @@ QBCore.Functions.CreateCallback("mechanic:server:getShowroom", function(source, 
     cb(ShowroomVehicles)
 end)
 
+--- Finalized Create Player Vehicle Handler
+--- @param request table {citizenid, model, garage, props}
+local function createPlayerVehicle(request)
+    assert(request.model ~= nil, "missing required field: model")
+
+    local props = request.props or {}
+    if not props.plate then
+        props.plate = GeneratePlate()
+    end
+    
+    props.engineHealth = props.engineHealth or 1000
+    props.bodyHealth = props.bodyHealth or 1000
+    props.fuelLevel = props.fuelLevel or 100
+    props.model = joaat(request.model)
+
+    return MySQL.insert.await([[
+        INSERT INTO player_vehicles 
+        (license, citizenid, vehicle, hash, mods, plate, state, fuel, engine, body, garage) 
+        VALUES (
+            (SELECT license FROM players WHERE citizenid = ?), 
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        )
+    ]], {
+        request.citizenid,
+        request.citizenid,
+        request.model,
+        props.model,
+        json.encode(props),
+        props.plate,
+        1, -- State: In Garage
+        props.fuelLevel,
+        props.engineHealth,
+        props.bodyHealth,
+        request.garage or "pillbox"
+    })
+end
+
 -- Purchase Logic
 RegisterNetEvent("mechanic:server:buyVehicle", function(model)
     local src = source
@@ -25,27 +62,20 @@ RegisterNetEvent("mechanic:server:buyVehicle", function(model)
     if not vehicleData then return end
 
     if Player.Functions.RemoveMoney("bank", vehicleData.price, "vehicle-purchase") then
-        local plate = GeneratePlate()
-        
-        -- Following the context pattern for creating player vehicles
-        MySQL.insert.await([[
-            INSERT INTO player_vehicles 
-            (license, citizenid, vehicle, hash, mods, plate, state, fuel, engine, body) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ]], {
-            Player.PlayerData.license,
-            Player.PlayerData.citizenid,
-            vehicleData.model,
-            joaat(vehicleData.model),
-            "{}",
-            plate,
-            1,      -- state (in garage)
-            100,    -- fuel
-            1000,   -- engine
-            1000    -- body
+        local success = createPlayerVehicle({
+            citizenid = Player.PlayerData.citizenid,
+            model = vehicleData.model,
+            garage = "pillbox",
+            props = {
+                plate = GeneratePlate(),
+                color1 = 0,
+                color2 = 0
+            }
         })
 
-        TriggerClientEvent("QBCore:Notify", src, "Congratulations! Your " .. vehicleData.label .. " (Plate: "..plate..") is in the garage.", "success")
+        if success then
+            TriggerClientEvent("QBCore:Notify", src, "Congratulations! Your " .. vehicleData.label .. " is in the garage.", "success")
+        end
     else
         TriggerClientEvent("QBCore:Notify", src, "Insufficient funds in bank", "error")
     end
