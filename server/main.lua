@@ -16,7 +16,7 @@ local function initializeDatabase()
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS vehicle_engines (
             plate VARCHAR(15) PRIMARY KEY,
-            engine_type VARCHAR(50) DEFAULT 'v6_stock',
+            engine_type VARCHAR(50) DEFAULT "v6_stock",
             nitro_level INT DEFAULT 0,
             reliability FLOAT DEFAULT 1.0
         )
@@ -63,6 +63,24 @@ local function buildSaveVehicleQuery(plate, options)
     placeholders[#placeholders+1] = plate
     return string.format("UPDATE player_vehicles SET %s WHERE plate = ?", table.concat(crumbs, ", ")), placeholders
 end
+
+-- Diagnostic Scanner Callback
+lib.callback.register("mechanic:server:scanVehicle", function(source, plate)
+    local result = MySQL.single.await("SELECT mods, engine, body FROM player_vehicles WHERE plate = ?", {plate})
+    if result then
+        return {
+            props = json.decode(result.mods),
+            engine = result.engine,
+            body = result.body
+        }
+    end
+    return nil
+end)
+
+-- Fetch Engine Swap Data
+lib.callback.register("mechanic:server:getEngineData", function(source, plate)
+    return MySQL.single.await("SELECT * FROM vehicle_engines WHERE plate = ?", {plate})
+end)
 
 -- Engine Swap Logic
 RegisterNetEvent("mechanic:server:swapEngine", function(plate, engineType)
@@ -141,4 +159,44 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     end
 
     TriggerClientEvent("QBCore:Notify", src, "Installation complete. Database updated.", "success")
+end)
+
+-- Invoicing System
+RegisterNetEvent("mechanic:server:sendInvoice", function(targetId, amount, reason)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    local target = QBCore.Functions.GetPlayer(targetId)
+    
+    if not target then return end
+
+    local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
+        Player.PlayerData.citizenid
+    })
+
+    local shopName = shop and shop.name or "Mechanic Service"
+
+    TriggerClientEvent("mechanic:client:receiveInvoice", targetId, {
+        shopName = shopName,
+        amount = amount,
+        reason = reason,
+        senderId = src
+    })
+end)
+
+RegisterNetEvent("mechanic:server:payInvoice", function(data)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return end
+
+    if Player.Functions.RemoveMoney("bank", data.amount, "mechanic-service") then
+        local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE name = ?", {data.shopName})
+        if shop then
+            MySQL.update.await("UPDATE mechanic_shops SET balance = balance + ? WHERE name = ?", {data.amount, shop.name})
+        end
+        TriggerClientEvent("QBCore:Notify", src, "Invoice Paid: $" .. data.amount, "success")
+        TriggerClientEvent("QBCore:Notify", data.senderId, "Customer paid invoice of $" .. data.amount, "success")
+    else
+        TriggerClientEvent("QBCore:Notify", src, "Insufficient funds in bank", "error")
+        TriggerClientEvent("QBCore:Notify", data.senderId, "Customer failed to pay invoice", "error")
+    end
 end)
