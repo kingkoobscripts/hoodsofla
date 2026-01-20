@@ -8,6 +8,14 @@ local ModCategories = {
         { id = 13, name = "Transmission", price = 4500 },
         { id = 15, name = "Suspension", price = 2500 },
         { id = 18, name = "Turbocharger", price = 8000 }
+    },
+    cosmetic = {
+        { id = 0, name = "Spoilers", price = 1500 },
+        { id = 1, name = "Front Bumper", price = 1200 },
+        { id = 2, name = "Rear Bumper", price = 1200 },
+        { id = 3, name = "Side Skirts", price = 1000 },
+        { id = 4, name = "Exhaust", price = 2000 },
+        { id = 7, name = "Hood", price = 1800 }
     }
 }
 
@@ -58,7 +66,7 @@ RegisterNUICallback("requestVehicleData", function(data, cb)
     local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
     if vehicle == 0 then return cb("fail") end
     
-    local mods = { performance = {} }
+    local mods = { performance = {}, cosmetic = {} }
     SetVehicleModKit(vehicle, 0)
 
     for _, cat in ipairs(ModCategories.performance) do
@@ -69,6 +77,19 @@ RegisterNUICallback("requestVehicleData", function(data, cb)
             current = GetVehicleMod(vehicle, cat.id),
             price = cat.price
         })
+    end
+
+    for _, cat in ipairs(ModCategories.cosmetic) do
+        local count = GetNumVehicleMods(vehicle, cat.id)
+        if count > 0 then
+            table.insert(mods.cosmetic, {
+                modId = cat.id,
+                name = cat.name,
+                count = count,
+                current = GetVehicleMod(vehicle, cat.id),
+                price = cat.price
+            })
+        end
     end
     
     SendNUIMessage({ action = "setVehicleMods", mods = mods })

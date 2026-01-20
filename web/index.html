@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MechanicX iPad Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <div class="ipad-frame">
+        <div class="dynamic-island"></div>
+        <div class="screen">
+            <!-- Status Bar -->
+            <div class="status-bar">
+                <span id="current-time">12:00</span>
+                <div class="status-right">
+                    <i class="fas fa-wifi"></i>
+                    <i class="fas fa-battery-full" style="margin-left: 10px;"></i>
+                </div>
+            </div>
+
+            <!-- Home Screen -->
+            <div id="home-screen" class="os-layer active">
+                <div class="app-grid">
+                    <div class="app-icon" onclick="loadApp('mechanic')">
+                        <div class="icon-box m-bg"><i class="fas fa-screwdriver-wrench"></i></div>
+                        <span>Mechanic</span>
+                    </div>
+                    <div class="app-icon" onclick="loadApp('dealership')">
+                        <div class="icon-box d-bg"><i class="fas fa-car-side"></i></div>
+                        <span>Showroom</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Container -->
+            <div id="app-layer" class="os-layer">
+                <div id="app-iframe-container">
+                    <!-- App HTML will be loaded here via AJAX/Fetch for browser compatibility -->
+                    <div id="app-content"></div>
+                </div>
+                <div class="home-indicator" onclick="goHome()"></div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
