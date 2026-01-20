@@ -5,13 +5,36 @@ exports.qbx_core:CreateCallback("mechanic:server:getBusinessData", function(sour
     local Player = exports.qbx_core:GetPlayer(source)
     if not Player then return cb(nil) end
 
-    local result = MySQL.single.await("SELECT * FROM mechanic_shops WHERE name = ?", {shopName})
+    -- If shopName is nil, find the shop this player works for
+    local query = "SELECT * FROM mechanic_shops WHERE name = ?"
+    local params = {shopName}
+
+    if not shopName then
+        query = "SELECT * FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))"
+        params = {Player.PlayerData.citizenid}
+    end
+
+    local result = MySQL.single.await(query, params)
     if result then
         result.employees = json.decode(result.employees) or {}
-        local logs = MySQL.query.await("SELECT * FROM mechanic_logs WHERE shop_name = ? ORDER BY timestamp DESC LIMIT 20", {shopName})
+        local logs = MySQL.query.await("SELECT * FROM mechanic_logs WHERE shop_name = ? ORDER BY timestamp DESC LIMIT 20", {result.name})
         result.logs = logs
     end
     cb(result)
+end)
+
+--- Fetch Shop Stock (Wholesale Pricing)
+exports.qbx_core:CreateCallback("mechanic:server:getShopStock", function(source, cb)
+    local stock = {}
+    for k, v in pairs(Config.Parts) do
+        table.insert(stock, {
+            item = k,
+            name = v.label,
+            price = v.price,
+            category = v.category
+        })
+    end
+    cb(stock)
 end)
 
 --- Wholesale Ordering Logic
@@ -20,11 +43,9 @@ RegisterNetEvent("mechanic:server:orderPart", function(partKey)
     local Player = exports.qbx_core:GetPlayer(src)
     if not Player then return end
 
-    -- Check if it's a standard part or an engine block
     local partData = Config.Parts[partKey] or Config.EngineBlocks[partKey]
     if not partData then return end
 
-    -- Find which shop the player works for
     local shop = MySQL.single.await("SELECT name, balance FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
         Player.PlayerData.citizenid
     })
@@ -45,7 +66,6 @@ RegisterNetEvent("mechanic:server:orderPart", function(partKey)
             exports.ox_inventory:AddItem(src, partData.item, 1)
             exports.qbx_core:Notify(src, "Ordered " .. partData.label .. " for $" .. partData.price, "success")
             
-            -- Log the business expense
             MySQL.insert.await("INSERT INTO mechanic_logs (shop_name, mechanic_name, plate, details, cost) VALUES (?, ?, ?, ?, ?)", {
                 shop.name,
                 Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,

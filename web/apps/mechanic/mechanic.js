@@ -4,6 +4,45 @@
     let dynoChart = null;
     let isDynoRunning = false;
 
+    // Initialize Dyno Chart
+    function initDynoChart() {
+        const ctx = document.getElementById("dynoChart").getContext("2d");
+        dynoChart = new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: "Horsepower",
+                        borderColor: "#FF9500",
+                        backgroundColor: "rgba(255, 149, 0, 0.1)",
+                        data: [],
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: "Torque",
+                        borderColor: "#007AFF",
+                        backgroundColor: "rgba(0, 122, 255, 0.1)",
+                        data: [],
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: "rgba(255,255,255,0.05)" }, ticks: { color: "#8E8E93" } },
+                    x: { grid: { display: false }, ticks: { color: "#8E8E93" } }
+                },
+                plugins: { legend: { display: false } },
+                animation: false
+            }
+        });
+    }
+
     window.addEventListener("message", function(event) {
         const data = event.data;
         if (data.action === "setVehicleMods") {
@@ -11,12 +50,46 @@
             renderAllMods();
             
             if (data.engineData) {
-                document.getElementById("active-engine-badge").innerText = data.engineData.engine_type.replace("_", " ").toUpperCase();
+                const badge = document.getElementById("active-engine-badge");
+                if (badge) badge.innerText = (data.engineData.engine_type || "STOCK").replace("_", " ").toUpperCase();
             }
         }
         if (data.action === "updateDyno") { updateDynoUI(data.data); }
         if (data.action === "setShopStock") { renderOrderCatalog(data.stock); }
     });
+
+    function updateDynoUI(data) {
+        document.getElementById("dyno-hp").innerText = data.hp;
+        document.getElementById("dyno-torque").innerText = data.torque;
+        document.getElementById("dyno-speed").innerText = data.speed;
+        document.getElementById("dyno-rpm").innerText = Math.floor(data.rpm * 8000);
+
+        if (dynoChart) {
+            if (dynoChart.data.labels.length > 20) {
+                dynoChart.data.labels.shift();
+                dynoChart.data.datasets[0].data.shift();
+                dynoChart.data.datasets[1].data.shift();
+            }
+            dynoChart.data.labels.push("");
+            dynoChart.data.datasets[0].data.push(data.hp);
+            dynoChart.data.datasets[1].data.push(data.torque);
+            dynoChart.update();
+        }
+    }
+
+    window.toggleDyno = function() {
+        isDynoRunning = !isDynoRunning;
+        const btn = document.getElementById("dyno-toggle-btn");
+        btn.innerText = isDynoRunning ? "Stop Test" : "Start Test";
+        btn.classList.toggle("ios-btn-red", isDynoRunning);
+
+        if (isDynoRunning && !dynoChart) initDynoChart();
+
+        fetch(`https://${GetParentResourceName()}/toggleDyno`, {
+            method: "POST",
+            body: JSON.stringify({ state: isDynoRunning })
+        });
+    }
 
     window.swapEngine = function(type) {
         fetch(`https://${GetParentResourceName()}/swapEngine`, {
@@ -33,9 +106,9 @@
         document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
         event.currentTarget.classList.add("active");
 
-        if (tab === 'tuning' || tab === 'engine') {
+        if (tab === "tuning" || tab === "engine") {
             fetch(`https://${GetParentResourceName()}/requestVehicleData`, { method: "POST" });
-        } else if (tab === 'inventory') {
+        } else if (tab === "inventory") {
             fetch(`https://${GetParentResourceName()}/requestPartsData`, { method: "POST" });
         }
     };
@@ -118,10 +191,9 @@
                 <div class="order-icon"><i class="fas fa-box"></i></div>
                 <div class="order-details">
                     <h4>${item.name}</h4>
-                    <p>Current Stock: <span style="color:white">${item.amount}</span></p>
+                    <p>Wholesale: <span style="color:var(--accent-green)">$${item.price}</span></p>
                 </div>
                 <div class="order-action">
-                    <span class="order-price">$${item.price}</span>
                     <button class="ios-btn ios-btn-primary" onclick="purchasePart('${item.item}')">Order</button>
                 </div>
             </div>

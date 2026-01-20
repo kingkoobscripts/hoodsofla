@@ -7,7 +7,7 @@
 .nav-item:hover { background: rgba(255,255,255,0.03); color: white; }
 .nav-item.active { background: rgba(0, 122, 255, 0.1); color: var(--accent-blue); border-left-color: var(--accent-blue); }
 
-.app-viewport { flex: 1; padding: 40px; overflow-y: auto; }
+.app-viewport { flex: 1; padding: 40px; overflow-y: auto; position: relative; }
 .view-layer { display: none; height: 100%; animation: fadeIn 0.4s ease; }
 .view-layer.active { display: block; }
 
@@ -34,5 +34,17 @@
 .order-details p { font-size: 12px; color: var(--text-dim); }
 .order-action { text-align: right; }
 .order-price { display: block; font-weight: 800; color: var(--accent-green); margin-bottom: 8px; }
+
+/* Dyno Styles */
+.dyno-layout { display: flex; flex-direction: column; gap: 20px; height: 100%; }
+.dyno-main { flex: 1; padding: 25px; display: flex; flex-direction: column; }
+.dyno-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.canvas-container { flex: 1; position: relative; min-height: 250px; }
+.dyno-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+.stat-box { padding: 20px; text-align: center; }
+.stat-box .label { display: block; font-size: 10px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 5px; }
+.stat-box .value { font-size: 24px; font-weight: 800; }
+
+.ios-btn-red { background: var(--accent-red) !important; }
 
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
