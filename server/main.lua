@@ -30,18 +30,12 @@ MySQL.ready(function()
     initializeDatabase()
 end)
 
--- Item Usables via ox_inventory
-exports.ox_inventory:registerHook("createItem", function(payload)
-    -- This ensures the items exist in the system
-    return true
-end)
-
 -- Mechanic Tablet Usage
 exports("use_mechanic_tablet", function(event, item, inventory, slot, data)
     if event == "usingItem" then
         local src = inventory.id
         TriggerClientEvent("mechanic:client:openTablet", src, "mechanic")
-        return false -- Prevents item consumption
+        return false 
     end
 end)
 
@@ -54,6 +48,7 @@ exports("use_admin_tablet", function(event, item, inventory, slot, data)
     end
 end)
 
+-- Build Finalization Logic
 RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
@@ -62,22 +57,24 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     local totalCost = 0
     local missingItems = {}
 
+    -- 1. Validate Items & Calculate Cost
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then
             local count = exports.ox_inventory:GetItemCount(src, requiredItem)
             if count < 1 then
-                table.insert(missingItems, QBCore.Shared.Items[requiredItem].label)
+                table.insert(missingItems, requiredItem)
             end
         end
-        totalCost = totalCost + mod.price
+        totalCost = totalCost + (mod.price or 0)
     end
 
     if #missingItems > 0 then
-        TriggerClientEvent("QBCore:Notify", src, "Missing parts: " .. table.concat(missingItems, ", "), "error")
+        TriggerClientEvent("QBCore:Notify", src, "Missing required parts in inventory", "error")
         return
     end
 
+    -- 2. Consume Items
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then
@@ -85,18 +82,28 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
         end
     end
 
+    -- 3. Update Vehicle Database
     MySQL.update.await("UPDATE player_vehicles SET mods = ? WHERE plate = ?", {
         json.encode(props),
         props.plate
     })
 
-    MySQL.insert.await("INSERT INTO mechanic_logs (shop_name, mechanic_name, plate, details, cost) VALUES (?, ?, ?, ?, ?)", {
-        Player.PlayerData.job.label,
-        Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
-        props.plate,
-        json.encode(cart),
-        totalCost
+    -- 4. Log the Transaction & Pay the Shop
+    local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
+        Player.PlayerData.citizenid
     })
 
-    TriggerClientEvent("QBCore:Notify", src, "Build finalized and parts installed!", "success")
+    if shop then
+        MySQL.update.await("UPDATE mechanic_shops SET balance = balance + ? WHERE name = ?", {totalCost, shop.name})
+        
+        MySQL.insert.await("INSERT INTO mechanic_logs (shop_name, mechanic_name, plate, details, cost) VALUES (?, ?, ?, ?, ?)", {
+            shop.name,
+            Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
+            props.plate,
+            json.encode(cart),
+            totalCost
+        })
+    end
+
+    TriggerClientEvent("QBCore:Notify", src, "Build finalized. Components installed successfully.", "success")
 end)

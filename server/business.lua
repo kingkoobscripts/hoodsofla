@@ -4,14 +4,14 @@ exports.qbx_core:CreateCallback("mechanic:server:getBusinessData", function(sour
     if result then
         result.employees = json.decode(result.employees) or {}
         
-        -- Get Unpaid Invoices for the shop
-        local invoices = MySQL.query.await("SELECT * FROM mechanic_invoices WHERE shop_name = ? AND status = 'unpaid'", {shopName})
-        result.invoices = invoices
+        -- Get recent logs for this shop
+        local logs = MySQL.query.await("SELECT * FROM mechanic_logs WHERE shop_name = ? ORDER BY timestamp DESC LIMIT 10", {shopName})
+        result.logs = logs
     end
     cb(result)
 end)
 
--- Employee Management
+-- Employee Management: Hire
 RegisterNetEvent("mechanic:server:hireEmployee", function(targetId)
     local src = source
     local boss = exports.qbx_core:GetPlayer(src)
@@ -24,6 +24,15 @@ RegisterNetEvent("mechanic:server:hireEmployee", function(targetId)
     if not shop then return end
 
     local employees = json.decode(shop.employees) or {}
+    
+    -- Check if already hired
+    for _, emp in ipairs(employees) do
+        if emp.citizenid == employee.PlayerData.citizenid then
+            exports.qbx_core:Notify(src, "Already employed", "error")
+            return
+        end
+    end
+
     table.insert(employees, {
         citizenid = employee.PlayerData.citizenid,
         name = employee.PlayerData.charinfo.firstname .. " " .. employee.PlayerData.charinfo.lastname,
@@ -31,48 +40,55 @@ RegisterNetEvent("mechanic:server:hireEmployee", function(targetId)
     })
 
     MySQL.update.await("UPDATE mechanic_shops SET employees = ? WHERE name = ?", {json.encode(employees), shop.name})
-    exports.qbx_core:Notify(src, "Hired " .. employee.PlayerData.charinfo.firstname, "success")
+    
+    -- Set the job via framework
+    exports.qbx_core:SetJob(targetId, "mechanic", 0)
+    exports.qbx_core:Notify(src, "Successfully hired " .. employee.PlayerData.charinfo.firstname, "success")
 end)
 
--- Parts Ordering Logic
-RegisterNetEvent("mechanic:server:orderPart", function(partId)
+-- Employee Management: Fire
+RegisterNetEvent("mechanic:server:fireEmployee", function(citizenid)
+    local src = source
+    local boss = exports.qbx_core:GetPlayer(src)
+    if not boss.PlayerData.job.isboss then return end
+
+    local shop = MySQL.single.await("SELECT name, employees FROM mechanic_shops WHERE owner = ?", {boss.PlayerData.citizenid})
+    if not shop then return end
+
+    local employees = json.decode(shop.employees) or {}
+    local newEmployees = {}
+    for _, emp in ipairs(employees) do
+        if emp.citizenid ~= citizenid then
+            table.insert(newEmployees, emp)
+        end
+    end
+
+    MySQL.update.await("UPDATE mechanic_shops SET employees = ? WHERE name = ?", {json.encode(newEmployees), shop.name})
+    
+    -- If player is online, set them to unemployed
+    local employee = exports.qbx_core:GetPlayerByCitizenId(citizenid)
+    if employee then
+        exports.qbx_core:SetJob(employee.PlayerData.source, "unemployed", 0)
+    end
+    
+    exports.qbx_core:Notify(src, "Employee terminated", "success")
+end)
+
+-- Shop Financials: Deposit
+RegisterNetEvent("mechanic:server:depositMoney", function(amount)
     local src = source
     local Player = exports.qbx_core:GetPlayer(src)
     if not Player then return end
 
-    local partData = Config.Parts[partId]
-    if not partData then return end
-
-    local shop = MySQL.single.await("SELECT balance, name FROM mechanic_shops WHERE owner = ? OR JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
-        Player.PlayerData.citizenid,
-        Player.PlayerData.citizenid
-    })
-
-    if not shop then
-        exports.qbx_core:Notify(src, "You are not linked to a registered shop", "error")
-        return
-    end
-
-    if shop.balance >= partData.price then
-        MySQL.update.await("UPDATE mechanic_shops SET balance = balance - ? WHERE name = ?", {partData.price, shop.name})
-        exports.ox_inventory:AddItem(src, partId, 1)
-        exports.qbx_core:Notify(src, "Ordered " .. partData.label, "success")
-    else
-        exports.qbx_core:Notify(src, "Shop balance too low", "error")
-    end
-end)
-
-RegisterNetEvent("mechanic:server:withdrawMoney", function(amount)
-    local src = source
-    local Player = exports.qbx_core:GetPlayer(src)
-    if not Player.PlayerData.job.isboss then return end
-
-    local shop = MySQL.single.await("SELECT balance, name FROM mechanic_shops WHERE owner = ?", {Player.PlayerData.citizenid})
-    if shop and shop.balance >= amount then
-        MySQL.update.await("UPDATE mechanic_shops SET balance = balance - ? WHERE name = ?", {amount, shop.name})
-        Player.Functions.AddMoney("cash", amount, "shop-withdrawal")
-        exports.qbx_core:Notify(src, "Withdrew $" .. amount, "success")
-    else
-        exports.qbx_core:Notify(src, "Insufficient shop funds", "error")
+    if Player.Functions.RemoveMoney("cash", amount, "shop-deposit") then
+        local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE owner = ? OR JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
+            Player.PlayerData.citizenid,
+            Player.PlayerData.citizenid
+        })
+        
+        if shop then
+            MySQL.update.await("UPDATE mechanic_shops SET balance = balance + ? WHERE name = ?", {amount, shop.name})
+            exports.qbx_core:Notify(src, "Deposited $" .. amount .. " to business account", "success")
+        end
     end
 end)
