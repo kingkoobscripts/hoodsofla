@@ -8,6 +8,10 @@
             renderAllMods();
         }
 
+        if (event.data.action === "setShopStock") {
+            renderStock(event.data.stock);
+        }
+
         if (event.data.action === "setDiagnosticResult") {
             renderDiagnostics(event.data);
         }
@@ -51,26 +55,23 @@
         return html;
     }
 
-    function renderDiagnostics(data) {
+    function renderStock(stock) {
         const viewport = document.getElementById("tuning-view");
         viewport.innerHTML = `
-            <div class="glass-card" style="max-width: 600px; margin: 0 auto;">
-                <h2 style="margin-bottom: 20px; color: var(--accent-blue);">Diagnostic Report: ${data.plate}</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
-                    <div class="stat-card glass-card">
-                        <span style="color: var(--text-dim); font-size: 12px;">Engine Health</span>
-                        <span style="font-size: 24px; font-weight: 800; color: ${data.engine > 700 ? 'var(--accent-green)' : 'var(--accent-red)'}">${(data.engine / 10).toFixed(1)}%</span>
-                    </div>
-                    <div class="stat-card glass-card">
-                        <span style="color: var(--text-dim); font-size: 12px;">Body Integrity</span>
-                        <span style="font-size: 24px; font-weight: 800; color: ${data.body > 700 ? 'var(--accent-green)' : 'var(--accent-red)'}">${(data.body / 10).toFixed(1)}%</span>
-                    </div>
+            <div class="glass-card">
+                <div class="card-header">
+                    <h3>Inventory Management</h3>
+                    <button class="ios-btn ios-btn-ghost" onclick="switchMechTab('tuning')">Back to Tuning</button>
                 </div>
-                <h3 style="font-size: 14px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 15px;">Installed Performance Mods</h3>
-                <div id="diag-mods-list">
-                    ${Object.keys(data.mods).length > 0 ? 'Scanning modules...' : 'No aftermarket mods detected.'}
+                <div class="stock-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                    ${stock.map(item => `
+                        <div class="glass-card" style="text-align: center;">
+                            <h4 style="font-size: 14px; margin-bottom: 10px;">${item.name}</h4>
+                            <div style="font-size: 24px; font-weight: 800; color: ${item.amount > 0 ? 'var(--accent-green)' : 'var(--accent-red)'}">${item.amount}</div>
+                            <p style="font-size: 11px; color: var(--text-dim);">In Stock</p>
+                        </div>
+                    `).join("")}
                 </div>
-                <button class="ios-btn ios-btn-primary" style="width: 100%; margin-top: 20px;" onclick="location.reload()">New Scan</button>
             </div>
         `;
     }
@@ -131,20 +132,36 @@
 
     window.confirmBuild = function() {
         if (currentCart.length === 0) return;
+        
+        const amount = currentCart.reduce((a, b) => a + b.price, 0);
+        const reason = "Vehicle Tuning & Performance Upgrades";
+        
+        // Finalize Build Logic
         fetch(`https://${GetParentResourceName()}/confirmBuild`, {
             method: "POST",
             body: JSON.stringify({ cart: currentCart })
         });
+
+        // Trigger Invoice Prompt
+        fetch(`https://${GetParentResourceName()}/sendInvoice`, {
+            method: "POST",
+            body: JSON.stringify({ amount: amount, reason: reason })
+        });
+
         currentCart = [];
         updateCartUI();
     };
 
     window.switchMechTab = function(tab) {
-        if (tab === 'diagnostics') {
-            fetch(`https://${GetParentResourceName()}/runDiagnostic`, { method: "POST" });
-        }
         const items = document.querySelectorAll(".nav-item");
         items.forEach(i => i.classList.remove("active"));
         event.currentTarget.classList.add("active");
+
+        if (tab === 'inventory') {
+            fetch(`https://${GetParentResourceName()}/requestPartsData`, { method: "POST" });
+        } else if (tab === 'tuning') {
+            fetch(`https://${GetParentResourceName()}/requestVehicleData`, { method: "POST" });
+            // Logic to revert viewport to tuning grid
+        }
     };
 })();

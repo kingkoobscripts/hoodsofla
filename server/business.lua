@@ -110,3 +110,55 @@ exports.qbx_core:CreateCallback("mechanic:server:scanVehicle", function(source, 
         cb(nil)
     end
 end)
+
+-- NEW: Stock Management Logic
+exports.qbx_core:CreateCallback("mechanic:server:getShopStock", function(source, cb)
+    local stock = {}
+    for itemName, data in pairs(Config.Parts) do
+        local count = exports.ox_inventory:GetItemCount(source, data.item)
+        table.insert(stock, {
+            name = data.label,
+            item = data.item,
+            amount = count,
+            price = data.price
+        })
+    end
+    cb(stock)
+end)
+
+-- NEW: Invoicing System
+RegisterNetEvent("mechanic:server:sendInvoice", function(targetId, amount, reason)
+    local src = source
+    local mechanic = exports.qbx_core:GetPlayer(src)
+    local customer = exports.qbx_core:GetPlayer(targetId)
+
+    if not customer then return end
+
+    local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
+        mechanic.PlayerData.citizenid
+    })
+
+    if not shop then return end
+
+    -- Using ox_lib for the confirmation dialog on customer side
+    TriggerClientEvent("mechanic:client:receiveInvoice", targetId, {
+        shopName = shop.name,
+        amount = amount,
+        reason = reason,
+        mechanicSource = src
+    })
+end)
+
+RegisterNetEvent("mechanic:server:payInvoice", function(data)
+    local src = source
+    local customer = exports.qbx_core:GetPlayer(src)
+    
+    if customer.Functions.RemoveMoney("bank", data.amount, "mechanic-invoice") then
+        MySQL.update.await("UPDATE mechanic_shops SET balance = balance + ? WHERE name = ?", {data.amount, data.shopName})
+        exports.qbx_core:Notify(src, "Invoice Paid: $" .. data.amount, "success")
+        exports.qbx_core:Notify(data.mechanicSource, "Customer paid the invoice of $" .. data.amount, "success")
+    else
+        exports.qbx_core:Notify(src, "Insufficient funds to pay invoice", "error")
+        exports.qbx_core:Notify(data.mechanicSource, "Customer failed to pay the invoice", "error")
+    end
+end)

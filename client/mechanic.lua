@@ -38,7 +38,10 @@ function openMechanicTablet(shopId)
     lib.callback("mechanic:server:getBusinessData", false, function(business)
         local health = { engine = 100, body = 100 }
         if vehicle ~= 0 then
-            health = GetVehicleHealth(vehicle)
+            health = {
+                engine = GetVehicleEngineHealth(vehicle),
+                body = GetVehicleBodyHealth(vehicle)
+            }
             CreateTuningCamera(vehicle) -- Pro Mode: Cinematic Cam
         end
 
@@ -78,8 +81,43 @@ RegisterNUICallback("changeCam", function(data, cb)
 end)
 
 RegisterNUICallback("requestPartsData", function(data, cb)
-    SendNUIMessage({ action = "setParts", parts = Config.Parts })
+    lib.callback("mechanic:server:getShopStock", false, function(stock)
+        SendNUIMessage({ action = "setShopStock", stock = stock })
+    end)
     cb("ok")
+end)
+
+RegisterNUICallback("sendInvoice", function(data, cb)
+    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+    if vehicle == 0 then return cb("fail") end
+
+    local passenger = GetPedInVehicleSeat(vehicle, 0) -- Front passenger seat
+    if passenger == 0 then 
+        exports.qbx_core:Notify("No customer detected in the passenger seat", "error")
+        return cb("fail") 
+    end
+
+    local targetId = GetPlayerServerId(NetworkGetPlayerIndexFromPed(passenger))
+    TriggerServerEvent("mechanic:server:sendInvoice", targetId, data.amount, data.reason)
+    cb("ok")
+end)
+
+-- Client Side Invoice Receiver
+RegisterNetEvent("mechanic:client:receiveInvoice", function(data)
+    local alert = lib.alertDialog({
+        header = "Service Invoice: " .. data.shopName,
+        content = ("You have been billed **$%s** for: \n*%s*"):format(data.amount, data.reason),
+        centered = true,
+        cancel = true,
+        labels = {
+            confirm = "Pay Now",
+            cancel = "Decline"
+        }
+    })
+
+    if alert == "confirm" then
+        TriggerServerEvent("mechanic:server:payInvoice", data)
+    end
 end)
 
 RegisterNUICallback("orderPart", function(data, cb)
