@@ -3,7 +3,7 @@ game "gta5"
 
 author "SwisserAI"
 description "mechanicxdealer - Advanced Modular Mechanic & Dealership Resource. Generated with SwisserAI - https://ai.swisser.dev"
-version "1.2.0"
+version "1.3.0"
 
 lua54 "yes"
 
@@ -11,7 +11,7 @@ dependency "ox_lib"
 dependency "oxmysql"
 dependency "qbx_core"
 
--- Set the UI entry point (Main Shell)
+-- UI Entry Points
 ui_page "web/index.html"
 
 files {
@@ -20,6 +20,10 @@ files {
     "web/script.js",
     "web/apps/mechanic/mechanic.html",
     "web/apps/mechanic/mechanic.js",
+    "web/apps/mechanic/mechanic.css",
+    "web/apps/admin/admin.html",
+    "web/apps/admin/admin.js",
+    "web/apps/admin/admin.css",
     "web/apps/dealership/dealership.html",
     "web/apps/dealership/dealership.js",
     "web/assets/*.png",

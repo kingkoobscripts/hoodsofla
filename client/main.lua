@@ -7,22 +7,38 @@ function SetUiState(state)
     SetNuiFocus(state, state)
     if not state then
         SendNUIMessage({ action = "closeUI" })
+        DisplayRadar(true)
     else
         DisplayRadar(false)
     end
-    
-    if not state then
-        DisplayRadar(true)
-    end
 end
 
--- NUI Callbacks
+RegisterNetEvent("mechanic:client:openTablet", function(appType)
+    local PlayerData = exports.qbx_core:GetPlayerData()
+    
+    -- Security Check
+    if appType == "mechanic" and PlayerData.job.name ~= "mechanic" then
+        exports.qbx_core:Notify("This tablet's OS is encrypted and only accessible by Mechanics.", "error")
+        return
+    end
+
+    SetUiState(true)
+    SendNUIMessage({
+        action = "openSpecificApp",
+        app = appType,
+        userData = {
+            name = PlayerData.charinfo.firstname .. " " .. PlayerData.charinfo.lastname,
+            job = PlayerData.job.label,
+            isBoss = PlayerData.job.isboss
+        }
+    })
+end)
+
 RegisterNUICallback("close", function(data, cb)
     SetUiState(false)
     cb("ok")
 end)
 
--- ESC Key backup
 CreateThread(function()
     while true do
         local sleep = 500
@@ -35,13 +51,3 @@ CreateThread(function()
         Wait(sleep)
     end
 end)
-
---- Helper to get vehicle health percentage
-function GetVehicleHealth(vehicle)
-    local engine = GetVehicleEngineHealth(vehicle)
-    local body = GetVehicleBodyHealth(vehicle)
-    return {
-        engine = math.floor(engine / 10),
-        body = math.floor(body / 10)
-    }
-end

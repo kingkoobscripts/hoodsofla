@@ -1,0 +1,62 @@
+<div class="admin-app-container">
+    <div class="app-sidebar">
+        <div class="sidebar-header">
+            <i class="fas fa-chart-pie"></i>
+            <span>Enterprise Admin</span>
+        </div>
+        <nav class="side-nav">
+            <div class="nav-item active" onclick="switchAdminTab('overview')">
+                <i class="fas fa-house"></i>
+                <span>Overview</span>
+            </div>
+            <div class="nav-item" onclick="switchAdminTab('employees')">
+                <i class="fas fa-users-gear"></i>
+                <span>Staff Management</span>
+            </div>
+            <div class="nav-item" onclick="switchAdminTab('finances')">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Financials</span>
+            </div>
+        </nav>
+    </div>
+
+    <div class="app-viewport">
+        <header class="viewport-header">
+            <div class="header-left">
+                <h2 id="admin-title">Shop Dashboard</h2>
+                <p id="shop-subtext">Loading business details...</p>
+            </div>
+            <div class="header-right">
+                <div class="stat-pill">
+                    <span class="label">Balance</span>
+                    <span class="value" id="shop-balance">$0</span>
+                </div>
+            </div>
+        </header>
+
+        <div id="admin-view-content" class="view-scroll">
+            <!-- Dynamic Admin Content -->
+            <div class="dashboard-grid">
+                <div class="glass-card stat-card">
+                    <i class="fas fa-wrench"></i>
+                    <h3>Total Services</h3>
+                    <p id="stat-services">0</p>
+                </div>
+                <div class="glass-card stat-card">
+                    <i class="fas fa-user-tie"></i>
+                    <h3>Active Staff</h3>
+                    <p id="stat-staff">0</p>
+                </div>
+            </div>
+
+            <div class="glass-card table-section">
+                <div class="section-header">
+                    <h3>Recent Activity</h3>
+                </div>
+                <div id="recent-logs" class="log-list">
+                    <p class="empty-msg">No recent activity found.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

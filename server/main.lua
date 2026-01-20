@@ -1,6 +1,7 @@
 local QBCore = exports["qb-core"]:GetCoreObject()
 
 local function initializeDatabase()
+    -- Business Table
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS mechanic_shops (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -11,6 +12,7 @@ local function initializeDatabase()
         )
     ]])
 
+    -- Logs for builds
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS mechanic_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -28,7 +30,30 @@ MySQL.ready(function()
     initializeDatabase()
 end)
 
---- Handles the final installation and item consumption
+-- Item Usables via ox_inventory
+exports.ox_inventory:registerHook("createItem", function(payload)
+    -- This ensures the items exist in the system
+    return true
+end)
+
+-- Mechanic Tablet Usage
+exports("use_mechanic_tablet", function(event, item, inventory, slot, data)
+    if event == "usingItem" then
+        local src = inventory.id
+        TriggerClientEvent("mechanic:client:openTablet", src, "mechanic")
+        return false -- Prevents item consumption
+    end
+end)
+
+-- Admin/Business Tablet Usage
+exports("use_admin_tablet", function(event, item, inventory, slot, data)
+    if event == "usingItem" then
+        local src = inventory.id
+        TriggerClientEvent("mechanic:client:openTablet", src, "admin")
+        return false
+    end
+end)
+
 RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
@@ -37,7 +62,6 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     local totalCost = 0
     local missingItems = {}
 
-    -- 1. Validate Items
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then
@@ -54,7 +78,6 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
         return
     end
 
-    -- 2. Consume Items
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then
@@ -62,13 +85,11 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
         end
     end
 
-    -- 3. Save to DB
     MySQL.update.await("UPDATE player_vehicles SET mods = ? WHERE plate = ?", {
         json.encode(props),
         props.plate
     })
 
-    -- 4. Log the service
     MySQL.insert.await("INSERT INTO mechanic_logs (shop_name, mechanic_name, plate, details, cost) VALUES (?, ?, ?, ?, ?)", {
         Player.PlayerData.job.label,
         Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
