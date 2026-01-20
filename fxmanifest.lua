@@ -3,7 +3,7 @@ game "gta5"
 
 author "SwisserAI"
 description "mechanicxdealer - Advanced Modular Mechanic & Dealership Resource. Generated with SwisserAI - https://ai.swisser.dev"
-version "1.3.0"
+version "1.4.0"
 
 lua54 "yes"
 
@@ -27,6 +27,8 @@ files {
     "web/apps/dealership/dealership.html",
     "web/apps/dealership/dealership.js",
     "web/assets/*.png",
+    -- Chart.js for Dyno Graphs
+    "https://cdn.jsdelivr.net/npm/chart.js"
 }
 
 shared_scripts {
@@ -38,7 +40,8 @@ client_scripts {
     "client/mechanic.lua",
     "client/tuning.lua",
     "client/camera.lua",
-    "client/dealership.lua"
+    "client/dealership.lua",
+    "client/dyno.lua"
 }
 
 server_scripts {

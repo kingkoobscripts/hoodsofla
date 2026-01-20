@@ -9,6 +9,10 @@
                 <i class="fas fa-car-battery"></i>
                 <span>Tuning & Build</span>
             </div>
+            <div class="nav-item" onclick="switchMechTab('dyno')">
+                <i class="fas fa-chart-line"></i>
+                <span>Live Dyno</span>
+            </div>
             <div class="nav-item" onclick="switchMechTab('inventory')">
                 <i class="fas fa-boxes-stacked"></i>
                 <span>Shop Stock</span>
@@ -21,6 +25,7 @@
     </div>
 
     <div class="app-viewport">
+        <!-- TUNING VIEW -->
         <div id="tuning-view" class="view-layer active">
             <div class="build-layout">
                 <div class="categories-column">
@@ -29,22 +34,16 @@
                             <h3>Performance</h3>
                             <i class="fas fa-gauge-high"></i>
                         </div>
-                        <div id="perf-list" class="mod-list">
-                            <!-- Performance mods injected here -->
-                        </div>
+                        <div id="perf-list" class="mod-list"></div>
                     </div>
-
                     <div class="category-card glass-card">
                         <div class="card-header">
                             <h3>Cosmetics</h3>
                             <i class="fas fa-paint-roller"></i>
                         </div>
-                        <div id="cosmetic-list" class="mod-list">
-                            <!-- Cosmetic mods injected here -->
-                        </div>
+                        <div id="cosmetic-list" class="mod-list"></div>
                     </div>
                 </div>
-
                 <div class="cart-column">
                     <div class="cart-card glass-card">
                         <div class="cart-header">
@@ -71,6 +70,46 @@
                 </div>
             </div>
         </div>
+
+        <!-- DYNO VIEW -->
+        <div id="dyno-view" class="view-layer">
+            <div class="dyno-layout">
+                <div class="dyno-main glass-card">
+                    <div class="dyno-header">
+                        <h3>Diagnostic Dynometer</h3>
+                        <div class="dyno-controls">
+                            <button class="ios-btn ios-btn-primary" id="dyno-toggle-btn" onclick="toggleDyno()">Start Test</button>
+                        </div>
+                    </div>
+                    <div class="canvas-container">
+                        <canvas id="dynoChart"></canvas>
+                    </div>
+                </div>
+                <div class="dyno-stats-grid">
+                    <div class="glass-card stat-box">
+                        <span class="label">Horsepower</span>
+                        <span class="value" id="dyno-hp">0</span>
+                    </div>
+                    <div class="glass-card stat-box">
+                        <span class="label">Torque (lb-ft)</span>
+                        <span class="value" id="dyno-torque">0</span>
+                    </div>
+                    <div class="glass-card stat-box">
+                        <span class="label">Speed</span>
+                        <span class="value"><span id="dyno-speed">0</span> <small>MPH</small></span>
+                    </div>
+                    <div class="glass-card stat-box">
+                        <span class="label">RPM</span>
+                        <span class="value" id="dyno-rpm">0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- INVENTORY VIEW -->
+        <div id="inventory-view" class="view-layer">
+            <div id="inventory-render"></div>
+        </div>
     </div>
 </div>
 
@@ -80,42 +119,21 @@
     .sidebar-header { padding: 30px 20px; display: flex; align-items: center; gap: 12px; font-weight: 800; color: var(--accent-blue); font-size: 18px; }
     .side-nav { flex: 1; }
     .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; cursor: pointer; color: #8E8E93; transition: 0.2s; }
-    .nav-item i { width: 20px; }
     .nav-item.active { color: white; background: rgba(0, 122, 255, 0.1); border-left: 4px solid var(--accent-blue); }
     
-    .app-viewport { flex: 1; padding: 30px; overflow: hidden; }
-    .build-layout { display: grid; grid-template-columns: 1fr 340px; gap: 25px; height: 100%; }
-    .categories-column { overflow-y: auto; padding-right: 10px; }
-    .categories-column::-webkit-scrollbar { width: 4px; }
-    .categories-column::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+    .app-viewport { flex: 1; padding: 30px; overflow: hidden; position: relative; }
+    .view-layer { display: none; height: 100%; }
+    .view-layer.active { display: block; }
 
-    .glass-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; margin-bottom: 20px; }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .card-header h3 { font-size: 16px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+    .dyno-layout { display: grid; grid-template-columns: 1fr 250px; gap: 20px; height: 100%; }
+    .dyno-main { display: flex; flex-direction: column; }
+    .canvas-container { flex: 1; position: relative; margin-top: 20px; }
+    .dyno-stats-grid { display: grid; grid-template-rows: repeat(4, 1fr); gap: 15px; }
+    .stat-box { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+    .stat-box .label { font-size: 10px; text-transform: uppercase; color: var(--text-dim); font-weight: 700; margin-bottom: 5px; }
+    .stat-box .value { font-size: 24px; font-weight: 800; color: var(--accent-blue); }
+    .stat-box .value small { font-size: 12px; color: var(--text-dim); }
 
-    .mod-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(255,255,255,0.02); border-radius: 12px; margin-bottom: 10px; }
-    .mod-info h4 { font-size: 14px; margin-bottom: 4px; }
-    .mod-info p { font-size: 12px; color: var(--text-dim); }
-
-    .mod-actions { display: flex; align-items: center; gap: 12px; }
-    .mod-select { background: #1c1c1e; color: white; border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 8px; font-size: 13px; outline: none; }
-    .add-btn { width: 32px; height: 32px; border-radius: 8px; background: var(--accent-blue); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
-    .add-btn:hover { background: #0062cc; transform: scale(1.05); }
-
-    .cart-column { height: 100%; }
-    .cart-card { height: 100%; display: flex; flex-direction: column; }
-    .cart-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-    .cart-items-scroll { flex: 1; overflow-y: auto; margin: 15px 0; }
-    .empty-cart { text-align: center; padding-top: 50px; color: var(--text-dim); }
-    .empty-cart i { font-size: 40px; margin-bottom: 15px; opacity: 0.2; }
-    
-    .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 10px; margin-bottom: 8px; }
-    .cart-item-info span { display: block; font-size: 13px; }
-    .cart-item-info small { color: var(--accent-green); font-weight: 600; }
-    .remove-item { color: var(--accent-red); cursor: pointer; font-size: 14px; padding: 5px; }
-
-    .cart-footer { padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
-    .summary-line { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; margin-bottom: 20px; }
-    .finalize-btn { width: 100%; padding: 16px; border-radius: 14px; background: var(--accent-blue); border: none; color: white; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.2s; }
-    .finalize-btn:hover { background: #0062cc; }
+    .glass-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; }
+    .dyno-header { display: flex; justify-content: space-between; align-items: center; }
 </style>
