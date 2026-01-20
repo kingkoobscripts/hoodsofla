@@ -15,11 +15,12 @@ local ModCategories = {
         { id = 2, name = "Rear Bumper", price = 1200 },
         { id = 3, name = "Side Skirts", price = 1000 },
         { id = 4, name = "Exhaust", price = 2000 },
-        { id = 7, name = "Hood", price = 1800 }
+        { id = 7, name = "Hood", price = 1800 },
+        { id = 48, name = "Livery", price = 2500 }
     }
 }
 
---- PREVIEW: Apply visually but don't save
+--- PREVIEW: Apply visually and move camera
 RegisterNUICallback("previewMod", function(data, cb)
     local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
     if not vehicle or vehicle == 0 then return cb("fail") end
@@ -29,11 +30,16 @@ RegisterNUICallback("previewMod", function(data, cb)
     end
 
     SetVehicleModKit(vehicle, 0)
+    
     if data.modId == 18 then
         ToggleVehicleMod(vehicle, 18, data.level ~= -1)
     else
         SetVehicleMod(vehicle, tonumber(data.modId), tonumber(data.level), false)
     end
+
+    -- Move Camera based on category
+    MoveTuningCamera(vehicle, data.type)
+    
     cb("ok")
 end)
 
@@ -43,9 +49,10 @@ RegisterNUICallback("confirmBuild", function(data, cb)
     
     if lib.progressBar({
         duration = 5000,
-        label = "Finalizing Vehicle Build...",
+        label = "Installing Components...",
         useWhileDead = false,
         canCancel = true,
+        disable = { move = true, car = true },
         anim = { dict = "anim@amb@clubhouse@tutorial@bkr_tut_ig5@", clip = "working_free_area" }
     }) then
         local props = QBCore.Functions.GetVehicleProperties(vehicle)
@@ -62,6 +69,7 @@ RegisterNUICallback("confirmBuild", function(data, cb)
     cb("ok")
 end)
 
+--- DATA REQUEST: Send vehicle mod list to NUI
 RegisterNUICallback("requestVehicleData", function(data, cb)
     local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
     if vehicle == 0 then return cb("fail") end
