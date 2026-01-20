@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MechanicX OS v2</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body>
+    <div id="tablet-shell">
+        <div class="bezel">
+            <div class="camera-lens"></div>
+            <div class="screen-area">
+                
+                <!-- TOP STATUS BAR -->
+                <div class="ios-status-bar">
+                    <div class="time" id="clock">12:00</div>
+                    <div class="pill-island">MechanicX Pro</div>
+                    <div class="icons">
+                        <i class="fas fa-wifi"></i>
+                        <i class="fas fa-battery-full"></i>
+                    </div>
+                </div>
+
+                <!-- MAIN OS CONTENT -->
+                <div id="os-main">
+                    <!-- HOME SCREEN -->
+                    <section id="home-screen" class="page active">
+                        <div class="app-grid">
+                            <div class="app-item" onclick="launchApp('mechanic')">
+                                <div class="app-icon mechanic-gradient"><i class="fas fa-tools"></i></div>
+                                <span>Workshop</span>
+                            </div>
+                            <div class="app-item" onclick="launchApp('dealership')">
+                                <div class="app-icon dealer-gradient"><i class="fas fa-car"></i></div>
+                                <span>Showroom</span>
+                            </div>
+                            <div class="app-item" onclick="launchApp('admin')">
+                                <div class="app-icon admin-gradient"><i class="fas fa-user-tie"></i></div>
+                                <span>Management</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- WORKSHOP APP -->
+                    <section id="app-mechanic" class="page">
+                        <div class="app-layout">
+                            <aside class="sidebar">
+                                <div class="shop-header">
+                                    <h1 id="ui-shop-name">LS Customs</h1>
+                                    <p id="ui-mechanic-name">John Doe</p>
+                                </div>
+                                <nav class="side-nav">
+                                    <button class="nav-btn active" onclick="switchTab('overview')"><i class="fas fa-home"></i> Overview</button>
+                                    <button class="nav-btn" onclick="switchTab('tuning')"><i class="fas fa-cog"></i> Custom Build</button>
+                                    <button class="nav-btn" onclick="switchTab('inventory')"><i class="fas fa-box"></i> Parts Order</button>
+                                </nav>
+                                <div class="sidebar-footer">
+                                    <div class="balance-card">
+                                        <span>Shop Balance</span>
+                                        <h2 id="ui-shop-balance">$0</h2>
+                                    </div>
+                                </div>
+                            </aside>
+
+                            <main class="content-view">
+                                <div id="tab-overview" class="tab-content active">
+                                    <div class="stats-grid">
+                                        <div class="stat-card">
+                                            <h3>Engine Health</h3>
+                                            <div class="progress-bar"><div id="engine-bar" style="width: 0%"></div></div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <h3>Body Health</h3>
+                                            <div class="progress-bar"><div id="body-bar" style="width: 0%"></div></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="tab-tuning" class="tab-content">
+                                    <div class="tuning-container">
+                                        <div class="mod-list" id="mod-render-area">
+                                            <!-- Performance/Cosmetic categories injected here -->
+                                        </div>
+                                        <div class="build-summary">
+                                            <h3>Build List</h3>
+                                            <div id="cart-items"></div>
+                                            <div class="summary-footer">
+                                                <div class="total-row"><span>Total</span><span id="cart-total">$0</span></div>
+                                                <button class="btn-primary" onclick="confirmBuild()">Finalize & Install</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </main>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- HOME INDICATOR -->
+                <div class="home-bar" onclick="goHome()"></div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
