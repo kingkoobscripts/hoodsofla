@@ -1,210 +1,118 @@
 let currentApp = null;
 let currentData = {};
 let activeTab = "overview";
-
-function updateTime() {
-    const now = new Date();
-    document.getElementById("current-time").innerText = now.getHours() + ":" + String(now.getMinutes()).padStart(2, '0');
-}
-setInterval(updateTime, 1000);
-updateTime();
+let shoppingCart = [];
 
 window.addEventListener("message", function(event) {
     const data = event.data;
-
     if (data.action === "openMechanicMenu") {
         document.body.classList.add("visible");
         currentData = data.data;
-        
-        // Update Sidebar Profile
-        document.getElementById("sidebar-user-name").innerText = data.data.mechanic;
-        document.getElementById("sidebar-shop-name").innerText = data.data.shopName;
-        document.getElementById("user-initials").innerText = data.data.mechanic.charAt(0);
-        
-        // Show/Hide Admin App based on perms
-        document.getElementById("admin-app-icon").style.display = data.data.isOwner ? "flex" : "none";
-        
         goHome();
     }
-
     if (data.action === "setVehicleMods") {
         renderTuning(data.mods);
     }
-
-    if (data.action === "closeUI") {
-        document.body.classList.remove("visible");
-    }
 });
 
-function openApp(appName) {
-    currentApp = appName;
-    document.getElementById("home-screen").classList.remove("active");
-    const appLayer = document.getElementById("app-layer");
-    const container = document.getElementById("app-container-main");
-    
-    appLayer.classList.add("active");
-    
-    // Set App Theme
-    container.className = `app-container app-${appName}`;
-    
-    const nav = document.getElementById("sidebar-nav");
-    nav.innerHTML = "";
-
-    if (appName === "mechanic") {
-        document.getElementById("sidebar-app-name").innerText = "M-Tablet Pro";
-        setupSidebar([
-            { id: "overview", icon: "fa-house", label: "Overview" },
-            { id: "tuning", icon: "fa-car-on", label: "Tuning" },
-            { id: "diagnostics", icon: "fa-microchip", label: "Diagnostics" },
-            { id: "billing", icon: "fa-file-invoice-dollar", label: "Invoicing" }
-        ]);
-        renderOverview();
-    } else if (appName === "admin") {
-        document.getElementById("sidebar-app-name").innerText = "Business Hub";
-        setupSidebar([
-            { id: "finance", icon: "fa-vault", label: "Finances" },
-            { id: "staff", icon: "fa-users", label: "Employees" },
-            { id: "logs", icon: "fa-list-ul", label: "Service Logs" }
-        ]);
-        renderFinance();
-    } else if (appName === "dealership") {
-        document.getElementById("sidebar-app-name").innerText = "D-Tablet";
-        setupSidebar([
-            { id: "showroom", icon: "fa-car", label: "Showroom" },
-            { id: "catalog", icon: "fa-book", label: "Catalog" }
-        ]);
-        // Trigger server fetch
-        fetch(`https://${GetParentResourceName()}/requestShowroom`, { method: "POST" });
-    }
-}
-
-function setupSidebar(items) {
-    const nav = document.getElementById("sidebar-nav");
-    items.forEach(item => {
-        const div = document.createElement("div");
-        div.className = `nav-item ${activeTab === item.id ? "active" : ""}`;
-        div.innerHTML = `<i class="fas ${item.icon}"></i> <span>${item.label}</span>`;
-        div.onclick = () => {
-            document.querySelectorAll(".nav-item").forEach(i => i.classList.remove("active"));
-            div.classList.add("active");
-            activeTab = item.id;
-            switchPage(item.id);
-        };
-        nav.appendChild(div);
-    });
-}
-
-function switchPage(pageId) {
-    const render = document.getElementById("app-content-render");
-    render.innerHTML = `<div style="display:flex; justify-content:center; padding: 50px;"><i class="fas fa-circle-notch fa-spin fa-2xl"></i></div>`;
-    
-    if (pageId === "tuning") {
-        fetch(`https://${GetParentResourceName()}/requestVehicleData`, { method: "POST" });
-    } else if (pageId === "overview") {
-        renderOverview();
-    } else if (pageId === "finance") {
-        renderFinance();
-    }
-}
-
-function renderOverview() {
-    document.getElementById("page-title").innerText = "Workshop Overview";
-    const render = document.getElementById("app-content-render");
-    
-    render.innerHTML = `
-        <div class="stat-grid">
-            <div class="glass-card">
-                <p style="color:var(--text-dim)">Shop Balance</p>
-                <h2 style="color:var(--accent-green)">$${currentData.balance.toLocaleString()}</h2>
-            </div>
-            <div class="glass-card">
-                <p style="color:var(--text-dim)">Engine Health</p>
-                <h2 style="color:var(--accent-orange)">${currentData.health.engine}%</h2>
-            </div>
-            <div class="glass-card">
-                <p style="color:var(--text-dim)">Body Condition</p>
-                <h2 style="color:var(--accent-blue)">${currentData.health.body}%</h2>
-            </div>
-        </div>
-        
-        <div class="glass-card" style="margin-top:20px;">
-            <h3>Active Vehicle Diagnostics</h3>
-            <p style="color:var(--text-dim); margin-bottom: 20px;">System scan ready for current vehicle in bay.</p>
-            <button class="ios-btn ios-btn-primary" onclick="switchPage('tuning')">Open Tuning Module</button>
-        </div>
-    `;
-}
-
 function renderTuning(mods) {
-    document.getElementById("page-title").innerText = "Vehicle Tuning";
+    document.getElementById("page-title").innerText = "Custom Build";
     const render = document.getElementById("app-content-render");
     
-    let html = `<div class="tuning-list">`;
+    let html = `
+        <div style="display:grid; grid-template-columns: 1fr 350px; gap: 20px;">
+            <div class="tuning-scroll-area" style="max-height: 550px; overflow-y: auto; padding-right: 10px;">
+    `;
     
     // Performance Section
-    html += `<h3 style="margin: 20px 0 15px 0; color: var(--accent-orange)">Performance Upgrades</h3>`;
+    html += `<h3 style="margin-bottom: 15px; color: var(--accent-orange)">Performance</h3>`;
     mods.performance.forEach(mod => {
         html += `
             <div class="tuning-item">
                 <div class="mod-info">
                     <h4>${mod.name}</h4>
-                    <p>Current: Level ${mod.current + 1} / ${mod.count}</p>
+                    <p>Level ${mod.current + 1} / ${mod.count}</p>
                 </div>
-                <div style="display:flex; align-items:center;">
-                    <span class="price-tag">$${mod.price}</span>
-                    <button class="ios-btn ios-btn-primary" onclick="purchaseMod(${mod.modId}, ${mod.current + 1})">Install</button>
+                <div style="display:flex; align-items:center; gap: 10px;">
+                    <select onchange="previewPart(${mod.modId}, this.value)" class="ios-input">
+                        ${generateOptions(mod.count, mod.current)}
+                    </select>
+                    <button class="ios-btn ios-btn-ghost" onclick="addToCart(${mod.modId}, '${mod.name}', ${mod.price})">Add</button>
                 </div>
             </div>
         `;
     });
 
-    html += `</div>`;
-    render.innerHTML = html;
-}
-
-function renderFinance() {
-    document.getElementById("page-title").innerText = "Financial Center";
-    const render = document.getElementById("app-content-render");
-    
-    render.innerHTML = `
-        <div class="glass-card">
-            <h3>Withdraw Business Funds</h3>
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <input type="number" id="withdraw-amount" placeholder="Amount..." style="background:rgba(0,0,0,0.3); border:1px solid #444; color:white; padding:12px; border-radius:10px; flex:1;">
-                <button class="ios-btn ios-btn-primary" onclick="withdrawFunds()">Withdraw</button>
+    html += `</div>
+        <div class="glass-card cart-sidebar">
+            <h3>Build List</h3>
+            <div id="cart-items" style="margin: 20px 0; min-height: 200px;">
+                ${renderCart()}
+            </div>
+            <div class="cart-total" style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 10px;">
+                    <span>Subtotal</span>
+                    <span id="cart-subtotal">$0</span>
+                </div>
+                <button class="ios-btn ios-btn-primary" style="width:100%" onclick="finalizeBuild()">Install & Invoice</button>
             </div>
         </div>
-    `;
+    </div>`;
+
+    render.innerHTML = html;
+    updateCartDisplay();
 }
 
-function goHome() {
-    document.getElementById("app-layer").classList.remove("active");
-    document.getElementById("home-screen").classList.add("active");
-    currentApp = null;
-    activeTab = "overview";
+function generateOptions(count, current) {
+    let options = "";
+    for(let i = -1; i < count; i++) {
+        options += `<option value="${i}" ${i == current ? 'selected' : ''}>${i == -1 ? 'Stock' : 'Stage ' + (i+1)}</option>`;
+    }
+    return options;
 }
 
-function purchaseMod(id, level) {
-    fetch(`https://${GetParentResourceName()}/purchaseMod`, {
+function previewPart(modId, level) {
+    fetch(`https://${GetParentResourceName()}/previewMod`, {
         method: "POST",
-        body: JSON.stringify({ modId: id, level: level })
+        body: JSON.stringify({ modId: modId, level: parseInt(level) })
     });
 }
 
-function withdrawFunds() {
-    const amount = document.getElementById("withdraw-amount").value;
-    if (amount > 0) {
-        fetch(`https://${GetParentResourceName()}/withdrawFunds`, {
-            method: "POST",
-            body: JSON.stringify({ amount: parseInt(amount) })
-        });
-    }
+function addToCart(modId, name, price) {
+    const level = 1; // Simplified for example
+    shoppingCart.push({ modId, name, price, level });
+    updateCartDisplay();
 }
 
-function closeUI() {
-    fetch(`https://${GetParentResourceName()}/close`, { method: "POST" });
+function renderCart() {
+    if (shoppingCart.length === 0) return `<p style="color:var(--text-dim); text-align:center;">No parts selected</p>`;
+    return shoppingCart.map((item, index) => `
+        <div class="cart-item" style="display:flex; justify-content:space-between; margin-bottom: 8px; font-size: 13px;">
+            <span>${item.name}</span>
+            <span style="color:var(--accent-green)">$${item.price} <i class="fas fa-times" onclick="removeFromCart(${index})" style="margin-left:8px; cursor:pointer; color:var(--accent-red)"></i></span>
+        </div>
+    `).join('');
 }
 
-document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeUI();
-});
+function updateCartDisplay() {
+    const container = document.getElementById("cart-items");
+    if (container) container.innerHTML = renderCart();
+    
+    const subtotal = shoppingCart.reduce((sum, item) => sum + item.price, 0);
+    const subtotalEl = document.getElementById("cart-subtotal");
+    if (subtotalEl) subtotalEl.innerText = `$${subtotal.toLocaleString()}`;
+}
+
+function removeFromCart(index) {
+    shoppingCart.splice(index, 1);
+    updateCartDisplay();
+}
+
+function finalizeBuild() {
+    if (shoppingCart.length === 0) return;
+    fetch(`https://${GetParentResourceName()}/confirmBuild`, {
+        method: "POST",
+        body: JSON.stringify({ cart: shoppingCart })
+    });
+    shoppingCart = [];
+}

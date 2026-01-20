@@ -11,17 +11,30 @@ Config.Shops = {
     }
 }
 
-Config.ShowroomCoords = vector4(-215.5, -1320.5, 30.5, 120.0)
-
-Config.Parts = {
-    ["engine_block"] = { label = "Engine Block", price = 2500, description = "Essential for engine rebuilds" },
-    ["brake_pads"] = { label = "Ceramic Brake Pads", price = 450, description = "High performance stopping power" },
-    ["turbo_kit"] = { label = "Stage 1 Turbo Kit", price = 8000, description = "Increased induction for forced air" },
-    ["suspension_kit"] = { label = "Lowering Springs", price = 1200, description = "Better handling and stance" }
-}
-
 Config.Prices = {
     performance = 5000,
     cosmetic = 1200,
-    paint = 800
+    paint = 800,
+    livery = 1500,
+    wheels = 2000
+}
+
+Config.Parts = {
+    -- Performance Items (Must be in inventory to install)
+    ["engine_block"] = { label = "Engine Block", price = 2500, item = "engine_part" },
+    ["brake_pads"] = { label = "Ceramic Brake Pads", price = 450, item = "brake_part" },
+    ["transmission_gear"] = { label = "High-Torque Gears", price = 1500, item = "transmission_part" },
+    ["turbo_kit"] = { label = "Stage 1 Turbo Kit", price = 8000, item = "turbo_part" },
+    
+    -- Cosmetic Items (Optional: Can be set to require items or just cash)
+    ["paint_can"] = { label = "Industrial Paint", price = 100, item = "paint_can" }
+}
+
+-- Mapping Mod IDs to required items
+Config.ModRequirements = {
+    [11] = "engine_part",
+    [12] = "brake_part",
+    [13] = "transmission_part",
+    [15] = "suspension_part",
+    [18] = "turbo_part"
 }

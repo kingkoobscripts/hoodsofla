@@ -1,6 +1,7 @@
 local QBCore = exports["qb-core"]:GetCoreObject()
+local originalProps = nil
+local currentShoppingCart = {}
 
---- Expanded list of all GTA vehicle modification categories
 local ModCategories = {
     performance = {
         { id = 11, name = "Engine Tuning" },
@@ -21,32 +22,48 @@ local ModCategories = {
         { id = 8, name = "Fenders" },
         { id = 10, name = "Roof" },
         { id = 22, name = "Xenon Lights" },
-        { id = 23, name = "Wheels" }
+        { id = 23, name = "Wheels" },
+        { id = 48, name = "Liveries" }
+    },
+    colors = {
+        { id = "primary", name = "Primary Paint" },
+        { id = "secondary", name = "Secondary Paint" },
+        { id = "pearlescent", name = "Pearlescent" },
+        { id = "wheels", name = "Wheel Color" }
     }
 }
 
---- Fetches all available mods with proper pricing and labels
---- @param vehicle number Entity handle
---- @return table mods
+--- Captures the vehicle state before tuning starts
+function StartTuningSession(vehicle)
+    originalProps = QBCore.Functions.GetVehicleProperties(vehicle)
+    currentShoppingCart = {}
+end
+
+--- Reverts changes if user cancels
+function CancelTuningSession(vehicle)
+    if originalProps then
+        QBCore.Functions.SetVehicleProperties(vehicle, originalProps)
+    end
+    originalProps = nil
+    currentShoppingCart = {}
+end
+
+--- Fetches all available mods
 local function getVehicleMods(vehicle)
-    local mods = { performance = {}, cosmetic = {}, paint = {} }
+    local mods = { performance = {}, cosmetic = {}, colors = {} }
     SetVehicleModKit(vehicle, 0)
 
-    -- Process Performance
     for _, mod in ipairs(ModCategories.performance) do
         local count = GetNumVehicleMods(vehicle, mod.id)
-        if count > 0 or mod.id == 18 then
-            mods.performance[#mods.performance + 1] = {
-                modId = mod.id,
-                name = mod.name,
-                count = count,
-                current = GetVehicleMod(vehicle, mod.id),
-                price = Config.Prices.performance
-            }
-        end
+        mods.performance[#mods.performance + 1] = {
+            modId = mod.id,
+            name = mod.name,
+            count = count,
+            current = GetVehicleMod(vehicle, mod.id),
+            price = Config.Prices.performance
+        }
     end
 
-    -- Process Cosmetic
     for _, mod in ipairs(ModCategories.cosmetic) do
         local count = GetNumVehicleMods(vehicle, mod.id)
         if count > 0 then
@@ -59,33 +76,57 @@ local function getVehicleMods(vehicle)
             }
         end
     end
-
+    
     return mods
 end
 
+-- NUI Callbacks
 RegisterNUICallback("requestVehicleData", function(data, cb)
     local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
     if vehicle ~= 0 then
+        if not originalProps then StartTuningSession(vehicle) end
         local mods = getVehicleMods(vehicle)
         SendNUIMessage({ action = "setVehicleMods", mods = mods })
     end
     cb("ok")
 end)
 
-RegisterNUICallback("purchaseMod", function(data, cb)
+--- PREVIEW ONLY: Does not save to DB
+RegisterNUICallback("previewMod", function(data, cb)
     local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
     if not vehicle or vehicle == 0 then return cb("fail") end
 
-    -- Apply the mod locally first
     if data.modId == 18 then
         ToggleVehicleMod(vehicle, 18, true)
+    elseif data.modId == "primary" then
+        local _, s = GetVehicleColours(vehicle)
+        SetVehicleColours(vehicle, data.level, s)
     else
-        SetVehicleMod(vehicle, data.modId, data.level, false)
+        SetVehicleMod(vehicle, tonumber(data.modId), tonumber(data.level), false)
     end
-
-    -- Save to Database
-    local props = QBCore.Functions.GetVehicleProperties(vehicle)
-    TriggerServerEvent("mechanic:server:saveVehicleProps", props)
     
+    cb("ok")
+end)
+
+--- FINALIZE: The actual installation process
+RegisterNUICallback("confirmBuild", function(data, cb)
+    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+    local cart = data.cart -- List of mods {modId, level, price}
+    
+    if lib.progressBar({
+        duration = #cart * 2000,
+        label = "Installing Modifications...",
+        useWhileDead = false,
+        canCancel = true,
+        disable = { car = true, move = true },
+        anim = { dict = "anim@amb@clubhouse@tutorial@bkr_tut_ig5@", clip = "working_free_area" }
+    }) then
+        local props = QBCore.Functions.GetVehicleProperties(vehicle)
+        TriggerServerEvent("mechanic:server:completeBuild", props, cart)
+        originalProps = nil -- Commit successful
+        SetUiState(false)
+    else
+        CancelTuningSession(vehicle)
+    end
     cb("ok")
 end)

@@ -1,7 +1,6 @@
 local QBCore = exports["qb-core"]:GetCoreObject()
 
 local function initializeDatabase()
-    -- Business Table
     MySQL.query.await([[
         CREATE TABLE IF NOT EXISTS mechanic_shops (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -12,52 +11,71 @@ local function initializeDatabase()
         )
     ]])
 
-    -- Invoices Table
     MySQL.query.await([[
-        CREATE TABLE IF NOT EXISTS mechanic_invoices (
+        CREATE TABLE IF NOT EXISTS mechanic_logs (
             id INT AUTO_INCREMENT PRIMARY KEY,
             shop_name VARCHAR(50),
-            citizenid VARCHAR(50),
-            amount INT,
-            reason TEXT,
-            status VARCHAR(20) DEFAULT 'unpaid',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            mechanic_name VARCHAR(100),
+            plate VARCHAR(15),
+            details JSON,
+            cost INT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ]])
-
-    -- Seed default shop if empty
-    local count = MySQL.scalar.await("SELECT COUNT(*) FROM mechanic_shops")
-    if count == 0 then
-        MySQL.insert.await("INSERT INTO mechanic_shops (name, owner, balance) VALUES (?, ?, ?)", 
-        {"Benny's Motorworks", "none", 50000})
-    end
 end
 
 MySQL.ready(function()
     initializeDatabase()
 end)
 
--- Save Vehicle Props
-RegisterNetEvent("mechanic:server:saveVehicleProps", function(props)
+--- Handles the final installation and item consumption
+RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     local src = source
-    if not props.plate then return end
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return end
 
+    local totalCost = 0
+    local missingItems = {}
+
+    -- 1. Validate Items
+    for _, mod in ipairs(cart) do
+        local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
+        if requiredItem then
+            local count = exports.ox_inventory:GetItemCount(src, requiredItem)
+            if count < 1 then
+                table.insert(missingItems, QBCore.Shared.Items[requiredItem].label)
+            end
+        end
+        totalCost = totalCost + mod.price
+    end
+
+    if #missingItems > 0 then
+        TriggerClientEvent("QBCore:Notify", src, "Missing parts: " .. table.concat(missingItems, ", "), "error")
+        return
+    end
+
+    -- 2. Consume Items
+    for _, mod in ipairs(cart) do
+        local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
+        if requiredItem then
+            exports.ox_inventory:RemoveItem(src, requiredItem, 1)
+        end
+    end
+
+    -- 3. Save to DB
     MySQL.update.await("UPDATE player_vehicles SET mods = ? WHERE plate = ?", {
         json.encode(props),
         props.plate
     })
-    
-    TriggerClientEvent("QBCore:Notify", src, "Vehicle modifications registered", "success")
-end)
 
--- Business Data Callback
-lib.callback.register("mechanic:server:getBusinessData", function(source, shopId)
-    local Player = QBCore.Functions.GetPlayer(source)
-    local result = MySQL.single.await("SELECT * FROM mechanic_shops WHERE name = ?", {shopId})
-    
-    if result then
-        result.isOwner = result.owner == Player.PlayerData.citizenid or Player.PlayerData.job.isboss
-    end
-    
-    return result
+    -- 4. Log the service
+    MySQL.insert.await("INSERT INTO mechanic_logs (shop_name, mechanic_name, plate, details, cost) VALUES (?, ?, ?, ?, ?)", {
+        Player.PlayerData.job.label,
+        Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
+        props.plate,
+        json.encode(cart),
+        totalCost
+    })
+
+    TriggerClientEvent("QBCore:Notify", src, "Build finalized and parts installed!", "success")
 end)
