@@ -74,7 +74,7 @@ CreateThread(function()
         local sleep = 500
         if isUiOpen then
             sleep = 0
-            if IsControlJustReleased(0, 322) then
+            if IsControlJustReleased(0, 322) then -- ESC
                 SetUiState(false)
             end
         end

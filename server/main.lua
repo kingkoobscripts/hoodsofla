@@ -20,7 +20,8 @@ local function initializeDatabase()
             engine_type VARCHAR(50) DEFAULT "v6_stock",
             nitro_level INT DEFAULT 0,
             reliability FLOAT DEFAULT 1.0,
-            metadata JSON DEFAULT '{}'
+            metadata JSON DEFAULT '{}',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         )
     ]])
 
@@ -42,7 +43,7 @@ MySQL.ready(function()
     initializeDatabase()
 end)
 
---- Stress Relief Logic for Mechanics
+--- Stress Relief Logic for Mechanics (QBX Style)
 --- @param source number Player ID
 --- @param min number Minimum relief
 --- @param max number Maximum relief
@@ -55,12 +56,11 @@ local function relieveMechanicStress(source, min, max)
     playerState:set("stress", newStress, true)
     
     if amount > 0 then
-        exports.qbx_core:Notify(source, "Focused work relieved some stress", "inform", 2500, nil, nil, { "#141517", "#ffffff" }, "brain", "#0F52BA")
+        exports.qbx_core:Notify(source, "The precision work helps you focus. Stress relieved.", "inform", 2500, nil, nil, { "#141517", "#ffffff" }, "brain", "#0F52BA")
     end
 end
 
 --- Modular query builder for vehicle updates (Finalized for Persistence)
---- This ensures mods, health, and status are synced correctly to player_vehicles
 --- @param vehicleId string Plate
 --- @param options table Data to save
 local function buildSaveVehicleQuery(vehicleId, options)
@@ -136,21 +136,22 @@ RegisterNetEvent("mechanic:server:swapEngine", function(plate, engineType)
 
     exports.ox_inventory:RemoveItem(src, blockData.item, 1)
 
-    -- Inject Top Speed and Acceleration Metadata for High-End Swaps
+    -- Inject High-Performance Handling Metadata
     local metadata = { 
-        topSpeedMultiplier = engineType == "v12_racing" and 1.6 or 1.2, 
+        topSpeedMultiplier = engineType == "v12_racing" and 1.6 or (engineType == "v8_crate" and 1.3 or 1.1), 
         accelerationBonus = engineType == "electric_tesla" and 2.5 or 1.5,
-        isHighPerformance = true 
+        isProBuild = true,
+        installedBy = Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname
     }
     
     MySQL.query.await([[
         INSERT INTO vehicle_engines (plate, engine_type, metadata) 
         VALUES (?, ?, ?) 
-        ON DUPLICATE KEY UPDATE engine_type = ?, metadata = ?
+        ON DUPLICATE KEY UPDATE engine_type = ?, metadata = ?, updated_at = CURRENT_TIMESTAMP
     ]], {plate, engineType, json.encode(metadata), engineType, json.encode(metadata)})
 
-    relieveMechanicStress(src, 10, 20)
-    exports.qbx_core:Notify(src, "Engine Swapped: " .. blockData.label, "success")
+    relieveMechanicStress(src, 15, 25)
+    exports.qbx_core:Notify(src, "Performance Engine Swapped: " .. blockData.label, "success")
 end)
 
 -- Build Finalization Logic
@@ -172,7 +173,7 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     end
 
     if #missingItems > 0 then
-        exports.qbx_core:Notify(src, "Missing required components to finish build", "error")
+        exports.qbx_core:Notify(src, "Missing components: " .. table.concat(missingItems, ", "), "error")
         return
     end
 
@@ -205,44 +206,4 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     end
 
     exports.qbx_core:Notify(src, "Installation complete. Database updated.", "success")
-end)
-
--- Invoicing System
-RegisterNetEvent("mechanic:server:sendInvoice", function(targetId, amount, reason)
-    local src = source
-    local Player = QBCore.Functions.GetPlayer(src)
-    local target = QBCore.Functions.GetPlayer(targetId)
-    
-    if not target then return end
-
-    local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
-        Player.PlayerData.citizenid
-    })
-
-    local shopName = shop and shop.name or "Mechanic Service"
-
-    TriggerClientEvent("mechanic:client:receiveInvoice", targetId, {
-        shopName = shopName,
-        amount = amount,
-        reason = reason,
-        senderId = src
-    })
-end)
-
-RegisterNetEvent("mechanic:server:payInvoice", function(data)
-    local src = source
-    local Player = QBCore.Functions.GetPlayer(src)
-    if not Player then return end
-
-    if Player.Functions.RemoveMoney("bank", data.amount, "mechanic-service") then
-        local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE name = ?", {data.shopName})
-        if shop then
-            MySQL.update.await("UPDATE mechanic_shops SET balance = balance + ? WHERE name = ?", {data.amount, shop.name})
-        end
-        exports.qbx_core:Notify(src, "Invoice Paid: $" .. data.amount, "success")
-        exports.qbx_core:Notify(data.senderId, "Customer paid invoice of $" .. data.amount, "success")
-    else
-        exports.qbx_core:Notify(src, "Insufficient funds in bank", "error")
-        exports.qbx_core:Notify(data.senderId, "Customer failed to pay invoice", "error")
-    end
 end)
