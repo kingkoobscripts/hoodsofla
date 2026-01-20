@@ -18,8 +18,8 @@
                 <span>Live Dyno</span>
             </div>
             <div class="nav-item" onclick="switchMechTab('inventory')">
-                <i class="fas fa-boxes-stacked"></i>
-                <span>Shop Stock</span>
+                <i class="fas fa-shopping-cart"></i>
+                <span>Order Parts</span>
             </div>
             <div class="nav-item" onclick="switchMechTab('business')">
                 <i class="fas fa-briefcase"></i>
@@ -109,6 +109,21 @@
             </div>
         </div>
 
+        <!-- INVENTORY/ORDERING VIEW -->
+        <div id="inventory-view" class="view-layer">
+            <div class="order-layout">
+                <div class="glass-card full-width">
+                    <div class="section-header">
+                        <h3>Wholesale Part Catalog</h3>
+                        <p>Purchase components using shop balance</p>
+                    </div>
+                    <div id="order-list" class="order-grid">
+                        <!-- Injected by JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- DYNO VIEW -->
         <div id="dyno-view" class="view-layer">
             <div class="dyno-layout">
@@ -145,20 +160,3 @@
         </div>
     </div>
 </div>
-
-<style>
-    /* ... previous styles ... */
-    .engine-swap-layout { display: grid; grid-template-rows: 200px 1fr; gap: 20px; height: 100%; }
-    .current-engine { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; position: relative; overflow: hidden; }
-    .engine-badge { position: absolute; top: 20px; right: 20px; background: var(--accent-orange); padding: 5px 15px; border-radius: 20px; font-weight: 800; font-size: 12px; }
-    
-    .engine-options-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-    .engine-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; transition: 0.3s; cursor: pointer; }
-    .engine-card:hover { border-color: var(--accent-blue); transform: translateY(-5px); }
-    .engine-card i { font-size: 40px; color: var(--accent-blue); }
-    .engine-card h4 { font-size: 18px; font-weight: 700; }
-    .engine-card p { font-size: 12px; color: var(--text-dim); }
-
-    .health-bar-container { width: 300px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 15px; }
-    .health-fill { height: 100%; background: var(--accent-green); border-radius: 10px; }
-</style>

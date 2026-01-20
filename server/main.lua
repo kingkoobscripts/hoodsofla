@@ -40,15 +40,10 @@ MySQL.ready(function()
     initializeDatabase()
 end)
 
---- Modular query builder for vehicle updates
+--- Modular query builder for vehicle updates (Modern Pattern)
 local function buildSaveVehicleQuery(plate, options)
     local crumbs = {}
     local placeholders = {}
-
-    if options.state then
-        crumbs[#crumbs+1] = "state = ?"
-        placeholders[#placeholders+1] = options.state
-    end
 
     if options.props then
         crumbs[#crumbs+1] = "mods = ?"
@@ -75,15 +70,16 @@ RegisterNetEvent("mechanic:server:swapEngine", function(plate, engineType)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
 
-    local engineItem = "engine_" .. engineType
-    local hasItem = exports.ox_inventory:GetItemCount(src, engineItem)
+    local blockData = Config.EngineBlocks[engineType]
+    if not blockData then return end
 
+    local hasItem = exports.ox_inventory:GetItemCount(src, blockData.item)
     if hasItem < 1 then
-        TriggerClientEvent("QBCore:Notify", src, "You don't have the required engine block in your inventory", "error")
+        TriggerClientEvent("QBCore:Notify", src, "Missing " .. blockData.label .. " in inventory", "error")
         return
     end
 
-    exports.ox_inventory:RemoveItem(src, engineItem, 1)
+    exports.ox_inventory:RemoveItem(src, blockData.item, 1)
 
     MySQL.query.await([[
         INSERT INTO vehicle_engines (plate, engine_type) 
@@ -91,11 +87,7 @@ RegisterNetEvent("mechanic:server:swapEngine", function(plate, engineType)
         ON DUPLICATE KEY UPDATE engine_type = ?
     ]], {plate, engineType, engineType})
 
-    TriggerClientEvent("QBCore:Notify", src, "Engine successfully swapped to " .. engineType:upper(), "success")
-end)
-
-lib.callback.register("mechanic:server:getEngineData", function(source, plate)
-    return MySQL.single.await("SELECT * FROM vehicle_engines WHERE plate = ?", {plate})
+    TriggerClientEvent("QBCore:Notify", src, "Engine Swapped: " .. blockData.label, "success")
 end)
 
 -- Build Finalization Logic
@@ -104,45 +96,49 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return end
 
-    local totalCost = 0
     local missingItems = {}
+    local totalCharge = 0
 
+    -- Validate Inventory for all parts in the cart
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then
             local count = exports.ox_inventory:GetItemCount(src, requiredItem)
             if count < 1 then table.insert(missingItems, requiredItem) end
         end
-        totalCost = totalCost + (mod.price or 0)
+        totalCharge = totalCharge + (mod.price or 0)
     end
 
     if #missingItems > 0 then
-        TriggerClientEvent("QBCore:Notify", src, "Missing required parts in inventory", "error")
+        TriggerClientEvent("QBCore:Notify", src, "Missing required components to finish build", "error")
         return
     end
 
+    -- Consume Items
     for _, mod in ipairs(cart) do
         local requiredItem = Config.ModRequirements[tonumber(mod.modId)]
         if requiredItem then exports.ox_inventory:RemoveItem(src, requiredItem, 1) end
     end
 
+    -- Save to DB
     local query, placeholders = buildSaveVehicleQuery(props.plate, { props = props })
     MySQL.update.await(query, placeholders)
 
+    -- Update Business Balance
     local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
         Player.PlayerData.citizenid
     })
 
     if shop then
-        MySQL.update.await("UPDATE mechanic_shops SET balance = balance + ? WHERE name = ?", {totalCost, shop.name})
+        MySQL.update.await("UPDATE mechanic_shops SET balance = balance + ? WHERE name = ?", {totalCharge, shop.name})
         MySQL.insert.await("INSERT INTO mechanic_logs (shop_name, mechanic_name, plate, details, cost) VALUES (?, ?, ?, ?, ?)", {
             shop.name,
             Player.PlayerData.charinfo.firstname .. " " .. Player.PlayerData.charinfo.lastname,
             props.plate,
             json.encode(cart),
-            totalCost
+            totalCharge
         })
     end
 
-    TriggerClientEvent("QBCore:Notify", src, "Build finalized. Components installed.", "success")
+    TriggerClientEvent("QBCore:Notify", src, "Installation complete. Database updated.", "success")
 end)
