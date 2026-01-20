@@ -9,6 +9,10 @@
                 <i class="fas fa-car-battery"></i>
                 <span>Tuning & Build</span>
             </div>
+            <div class="nav-item" onclick="switchMechTab('engine')">
+                <i class="fas fa-engine"></i>
+                <span>Engine Swap</span>
+            </div>
             <div class="nav-item" onclick="switchMechTab('dyno')">
                 <i class="fas fa-chart-line"></i>
                 <span>Live Dyno</span>
@@ -71,6 +75,40 @@
             </div>
         </div>
 
+        <!-- ENGINE SWAP VIEW -->
+        <div id="engine-view" class="view-layer">
+            <div class="engine-swap-layout">
+                <div class="current-engine glass-card">
+                    <div class="engine-badge" id="active-engine-badge">V6 STOCK</div>
+                    <h3>Current Powerplant</h3>
+                    <p id="engine-desc">Factory standard internal combustion engine.</p>
+                    <div class="health-bar-container">
+                        <div class="health-fill" style="width: 100%"></div>
+                    </div>
+                </div>
+                <div class="engine-options-grid">
+                    <div class="glass-card engine-card" onclick="swapEngine('v8_crate')">
+                        <i class="fas fa-fire"></i>
+                        <h4>V8 Crate Engine</h4>
+                        <p>High torque, classic muscle sound.</p>
+                        <button class="ios-btn ios-btn-primary">Swap Engine</button>
+                    </div>
+                    <div class="glass-card engine-card" onclick="swapEngine('v12_racing')">
+                        <i class="fas fa-wind"></i>
+                        <h4>V12 Racing Block</h4>
+                        <p>Maximum top speed and precision.</p>
+                        <button class="ios-btn ios-btn-primary">Swap Engine</button>
+                    </div>
+                    <div class="glass-card engine-card" onclick="swapEngine('electric_tesla')">
+                        <i class="fas fa-bolt"></i>
+                        <h4>E-Performance Kit</h4>
+                        <p>Silent, instant torque delivery.</p>
+                        <button class="ios-btn ios-btn-primary">Swap Engine</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- DYNO VIEW -->
         <div id="dyno-view" class="view-layer">
             <div class="dyno-layout">
@@ -105,35 +143,22 @@
                 </div>
             </div>
         </div>
-        
-        <!-- INVENTORY VIEW -->
-        <div id="inventory-view" class="view-layer">
-            <div id="inventory-render"></div>
-        </div>
     </div>
 </div>
 
 <style>
-    .mechanic-app-container { display: flex; height: 100%; color: white; background: #0a0a0c; }
-    .app-sidebar { width: 220px; background: rgba(0,0,0,0.3); border-right: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; }
-    .sidebar-header { padding: 30px 20px; display: flex; align-items: center; gap: 12px; font-weight: 800; color: var(--accent-blue); font-size: 18px; }
-    .side-nav { flex: 1; }
-    .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; cursor: pointer; color: #8E8E93; transition: 0.2s; }
-    .nav-item.active { color: white; background: rgba(0, 122, 255, 0.1); border-left: 4px solid var(--accent-blue); }
+    /* ... previous styles ... */
+    .engine-swap-layout { display: grid; grid-template-rows: 200px 1fr; gap: 20px; height: 100%; }
+    .current-engine { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; position: relative; overflow: hidden; }
+    .engine-badge { position: absolute; top: 20px; right: 20px; background: var(--accent-orange); padding: 5px 15px; border-radius: 20px; font-weight: 800; font-size: 12px; }
     
-    .app-viewport { flex: 1; padding: 30px; overflow: hidden; position: relative; }
-    .view-layer { display: none; height: 100%; }
-    .view-layer.active { display: block; }
+    .engine-options-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+    .engine-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px; transition: 0.3s; cursor: pointer; }
+    .engine-card:hover { border-color: var(--accent-blue); transform: translateY(-5px); }
+    .engine-card i { font-size: 40px; color: var(--accent-blue); }
+    .engine-card h4 { font-size: 18px; font-weight: 700; }
+    .engine-card p { font-size: 12px; color: var(--text-dim); }
 
-    .dyno-layout { display: grid; grid-template-columns: 1fr 250px; gap: 20px; height: 100%; }
-    .dyno-main { display: flex; flex-direction: column; }
-    .canvas-container { flex: 1; position: relative; margin-top: 20px; }
-    .dyno-stats-grid { display: grid; grid-template-rows: repeat(4, 1fr); gap: 15px; }
-    .stat-box { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-    .stat-box .label { font-size: 10px; text-transform: uppercase; color: var(--text-dim); font-weight: 700; margin-bottom: 5px; }
-    .stat-box .value { font-size: 24px; font-weight: 800; color: var(--accent-blue); }
-    .stat-box .value small { font-size: 12px; color: var(--text-dim); }
-
-    .glass-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 20px; }
-    .dyno-header { display: flex; justify-content: space-between; align-items: center; }
+    .health-bar-container { width: 300px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-top: 15px; }
+    .health-fill { height: 100%; background: var(--accent-green); border-radius: 10px; }
 </style>

@@ -100,6 +100,34 @@ RegisterNUICallback("requestVehicleData", function(data, cb)
         end
     end
     
-    SendNUIMessage({ action = "setVehicleMods", mods = mods })
+    -- Get Engine Swap Data
+    local plate = GetVehicleNumberPlateText(vehicle)
+    lib.callback("mechanic:server:getEngineData", false, function(engineData)
+        SendNUIMessage({ 
+            action = "setVehicleMods", 
+            mods = mods,
+            engineData = engineData or { type = "Stock", health = 100 }
+        })
+    end, plate)
+
+    cb("ok")
+end)
+
+--- ENGINE SWAP ACTION
+RegisterNUICallback("swapEngine", function(data, cb)
+    local vehicle = GetVehiclePedIsIn(PlayerPedId(), false)
+    if vehicle == 0 then return cb("fail") end
+
+    if lib.progressBar({
+        duration = 10000,
+        label = "Swapping Engine Block...",
+        useWhileDead = false,
+        canCancel = true,
+        disable = { move = true, car = true },
+        anim = { dict = "mp_car_bomb", clip = "car_bomb_mechanic" }
+    }) then
+        TriggerServerEvent("mechanic:server:swapEngine", GetVehicleNumberPlateText(vehicle), data.engineType)
+        SetUiState(false)
+    end
     cb("ok")
 end)
