@@ -1,6 +1,6 @@
 local QBCore = exports["qb-core"]:GetCoreObject()
 
--- Vehicle Catalog (Normally would be in a config.lua)
+-- Vehicle Catalog
 local ShowroomVehicles = {
     { model = "panto", label = "Panto Sport", price = 15000, category = "compact" },
     { model = "adder", label = "Truffade Adder", price = 1000000, category = "super" },
@@ -25,21 +25,29 @@ RegisterNetEvent("mechanic:server:buyVehicle", function(model)
     if not vehicleData then return end
 
     if Player.Functions.RemoveMoney("bank", vehicleData.price, "vehicle-purchase") then
-        local plate = GeneratePlate() -- Helper function
+        local plate = GeneratePlate()
         
-        MySQL.insert.await("INSERT INTO player_vehicles (license, citizenid, vehicle, hash, mods, plate, state) VALUES (?, ?, ?, ?, ?, ?, ?)", {
+        -- Following the context pattern for creating player vehicles
+        MySQL.insert.await([[
+            INSERT INTO player_vehicles 
+            (license, citizenid, vehicle, hash, mods, plate, state, fuel, engine, body) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ]], {
             Player.PlayerData.license,
             Player.PlayerData.citizenid,
             vehicleData.model,
-            GetHashKey(vehicleData.model),
+            joaat(vehicleData.model),
             "{}",
             plate,
-            1
+            1,      -- state (in garage)
+            100,    -- fuel
+            1000,   -- engine
+            1000    -- body
         })
 
-        TriggerClientEvent("QBCore:Notify", src, "Congratulations! Your " .. vehicleData.label .. " is in the garage.", "success")
+        TriggerClientEvent("QBCore:Notify", src, "Congratulations! Your " .. vehicleData.label .. " (Plate: "..plate..") is in the garage.", "success")
     else
-        TriggerClientEvent("QBCore:Notify", src, "Insufficient funds", "error")
+        TriggerClientEvent("QBCore:Notify", src, "Insufficient funds in bank", "error")
     end
 end)
 

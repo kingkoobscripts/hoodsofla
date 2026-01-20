@@ -30,6 +30,42 @@ MySQL.ready(function()
     initializeDatabase()
 end)
 
+--- Modular query builder for vehicle updates (Context Pattern)
+--- @param plate string The vehicle plate
+--- @param options table Data to update (props, state, engine, body, etc)
+local function buildSaveVehicleQuery(plate, options)
+    local crumbs = {}
+    local placeholders = {}
+
+    if options.state then
+        crumbs[#crumbs+1] = "state = ?"
+        placeholders[#placeholders+1] = options.state
+    end
+
+    if options.props then
+        crumbs[#crumbs+1] = "mods = ?"
+        placeholders[#placeholders+1] = json.encode(options.props)
+
+        if options.props.engineHealth then
+            crumbs[#crumbs+1] = "engine = ?"
+            placeholders[#placeholders+1] = options.props.engineHealth
+        end
+
+        if options.props.bodyHealth then
+            crumbs[#crumbs+1] = "body = ?"
+            placeholders[#placeholders+1] = options.props.bodyHealth
+        end
+
+        if options.props.fuelLevel then
+            crumbs[#crumbs+1] = "fuel = ?"
+            placeholders[#placeholders+1] = options.props.fuelLevel
+        end
+    end
+
+    placeholders[#placeholders+1] = plate
+    return string.format("UPDATE player_vehicles SET %s WHERE plate = ?", table.concat(crumbs, ", ")), placeholders
+end
+
 -- Mechanic Tablet Usage
 exports("use_mechanic_tablet", function(event, item, inventory, slot, data)
     if event == "usingItem" then
@@ -82,11 +118,12 @@ RegisterNetEvent("mechanic:server:completeBuild", function(props, cart)
         end
     end
 
-    -- 3. Update Vehicle Database
-    MySQL.update.await("UPDATE player_vehicles SET mods = ? WHERE plate = ?", {
-        json.encode(props),
-        props.plate
+    -- 3. Update Vehicle Database using modular query builder
+    local query, placeholders = buildSaveVehicleQuery(props.plate, {
+        props = props,
+        state = 1 -- Set to 1 (stored) or keep current
     })
+    MySQL.update.await(query, placeholders)
 
     -- 4. Log the Transaction & Pay the Shop
     local shop = MySQL.single.await("SELECT name FROM mechanic_shops WHERE JSON_CONTAINS(employees, JSON_OBJECT('citizenid', ?))", {
