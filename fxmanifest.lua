@@ -7,9 +7,9 @@ version "1.4.0"
 
 lua54 "yes"
 
-dependency "ox_lib"
 dependency "oxmysql"
 dependency "qbx_core"
+dependency "ox_inventory"
 
 -- UI Entry Points
 ui_page "web/index.html"
@@ -26,13 +26,15 @@ files {
     "web/apps/admin/admin.css",
     "web/apps/dealership/dealership.html",
     "web/apps/dealership/dealership.js",
-    "web/assets/*.png",
-    -- Chart.js for Dyno Graphs
-    "https://cdn.jsdelivr.net/npm/chart.js"
+    "web/apps/dealership/dealership.css",
+    "web/apps/customer/customer.html",
+    "web/apps/customer/customer.js",
+    "web/apps/customer/customer.css"
 }
 
 shared_scripts {
-    "config.lua"
+    "config.lua",
+    "shared/performance.lua"
 }
 
 client_scripts {
@@ -41,11 +43,16 @@ client_scripts {
     "client/tuning.lua",
     "client/camera.lua",
     "client/dealership.lua",
-    "client/dyno.lua"
+    "client/dyno.lua",
+    "client/customer.lua",
+    "client/durability.lua",
+    "client/speedometer.lua"
 }
 
 server_scripts {
     "@oxmysql/lib/MySQL.lua",
+    "server/framework.lua",
+    "server/permissions.lua",
     "server/main.lua",
     "server/dealership.lua",
     "server/business.lua"
